@@ -112,11 +112,11 @@ jobs:
 
           mode="${1:-warm}"
           corepack enable
+          cd upstream
           corepack install
           pnpm() { corepack pnpm "$@"; }
           mkdir -p "${PNPM_STORE_DIR}"
           export npm_config_store_dir="${PNPM_STORE_DIR}"
-          cd upstream
           pnpm --version
 
           eval "$INSTALL_COMMAND"
@@ -337,11 +337,11 @@ jobs:
 
           mode="${1:-warm}"
           corepack enable
+          cd upstream
           corepack install
           pnpm() { corepack pnpm "$@"; }
           mkdir -p "${PNPM_STORE_DIR}"
           export npm_config_store_dir="${PNPM_STORE_DIR}"
-          cd upstream
           pnpm --version
 
           eval "$INSTALL_COMMAND"
