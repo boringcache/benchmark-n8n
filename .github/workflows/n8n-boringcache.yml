@@ -7,6 +7,12 @@ on:
         description: "Optional boringcache/cli ref to build and use instead of the released CLI"
         required: false
         type: string
+  push:
+    branches:
+      - main
+    paths:
+      - ".gitmodules"
+      - "upstream"
   pull_request:
     paths:
       - ".gitmodules"
@@ -30,7 +36,6 @@ jobs:
     with:
       benchmark_id: n8n
       project_repo: n8n-io/n8n
-      project_ref: 78b7f888467b87254fbce7974a0c4c545750174e
       strategy: boringcache
       node_version: "24.13.1"
       install_command: CI=1 pnpm install --frozen-lockfile

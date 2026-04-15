@@ -7,16 +7,15 @@ This repo exists separately from [`boringcache/benchmarks`](https://github.com/b
 - one pinned upstream source commit
 - isolated GitHub Actions cache usage
 - one shared BoringCache workspace name: `boringcache/benchmarks`
-- independent workflow history and nightly runs
+- independent workflow history plus commit-driven and nightly benchmark runs
 
 ## Source Model
 
 - Upstream source lives in the pinned `upstream/` submodule.
-- `scenarios/stale-low.patch`, `scenarios/stale-mid.patch`, and `scenarios/stale-high.patch` are the only source mutations applied during scenario runs.
 
-The current pinned upstream source is:
+Pinned upstream source:
 
-- `n8n-io/n8n@78b7f888467b87254fbce7974a0c4c545750174e`
+- see committed `upstream/` submodule on `main`
 
 ## What It Measures
 
@@ -24,14 +23,10 @@ Each backend runs the same scenario set:
 
 - `cold`
 - `warm1`
-- `warm2`
-- `stale-low`: one low-fanout TypeScript source change
-- `stale-mid`: one median-dependency TypeScript source change
-- `stale-high`: one high-fanout workflow TypeScript source change
 
 The story this benchmark is meant to show is:
 
-- speed on cold, warm, and stale paths
+- speed on cold and warm paths
 - storage footprint in each backend
 - whether Turbo cache reuse stays reliable on fresh runners
 
