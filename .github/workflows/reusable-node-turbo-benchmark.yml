@@ -12,6 +12,10 @@ on:
       strategy:
         required: true
         type: string
+      cache_lane:
+        required: false
+        type: string
+        default: fresh
       benchmark_workspace:
         required: false
         type: string
@@ -41,6 +45,7 @@ env:
   INSTALL_COMMAND: ${{ inputs.install_command }}
   BUILD_COMMAND: ${{ inputs.build_command }}
   STALE_LEVEL: ${{ inputs.stale_level }}
+  CACHE_LANE: ${{ inputs.cache_lane }}
   TURBO_PROXY_PORT: "4227"
   PNPM_STORE_DIR: ${{ github.workspace }}/.pnpm-store
 
@@ -56,6 +61,7 @@ jobs:
       scope_started_at: ${{ steps.scope.outputs.scope_started_at }}
       tags_csv: ${{ steps.boringcache_one.outputs.resolved-tags || steps.scope.outputs.tags_csv }}
       seed_cache_key: ${{ steps.seed_cache_key.outputs.key }}
+      cache_key_prefix: ${{ steps.scope.outputs.cache_key_prefix }}
     steps:
       - name: Validate BoringCache secrets
         if: inputs.strategy == 'boringcache'
@@ -88,17 +94,30 @@ jobs:
           set -euo pipefail
 
           scope_started_at="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-          cache_scope="${BENCHMARK_ID}-run-r${GITHUB_RUN_ID}-a${GITHUB_RUN_ATTEMPT}"
+          ref_slug="$(printf '%s' "${GITHUB_REF_NAME}" | tr -c 'A-Za-z0-9._-' '-')"
+          ref_slug="${ref_slug#-}"
+          ref_slug="${ref_slug%-}"
+          ref_slug="${ref_slug:-main}"
+          if [[ "$CACHE_LANE" == "rolling" ]]; then
+            cache_scope="${BENCHMARK_ID}-rolling-${ref_slug}"
+            cache_key_prefix="ac-${BENCHMARK_ID}-rolling-${ref_slug}"
+            cache_key_primary="${cache_key_prefix}-r${GITHUB_RUN_ID}-a${GITHUB_RUN_ATTEMPT}-seed1"
+            cache_key_fallback="${cache_key_prefix}-r${GITHUB_RUN_ID}-a${GITHUB_RUN_ATTEMPT}-seed2"
+          else
+            cache_scope="${BENCHMARK_ID}-run-r${GITHUB_RUN_ID}-a${GITHUB_RUN_ATTEMPT}"
+            cache_key_prefix="ac-${cache_scope}"
+            cache_key_primary="ac-${cache_scope}-seed1"
+            cache_key_fallback="ac-${cache_scope}-seed2"
+          fi
           tag_turbo="${cache_scope}-turbo"
           tag_pnpm="${tag_turbo}-pnpm-store"
           tags_csv="${tag_turbo},${tag_pnpm}"
-          cache_key_primary="ac-${cache_scope}-seed1"
-          cache_key_fallback="ac-${cache_scope}-seed2"
 
           echo "scope_started_at=${scope_started_at}" >> "$GITHUB_OUTPUT"
           echo "tag_turbo=${tag_turbo}" >> "$GITHUB_OUTPUT"
           echo "tag_pnpm=${tag_pnpm}" >> "$GITHUB_OUTPUT"
           echo "tags_csv=${tags_csv}" >> "$GITHUB_OUTPUT"
+          echo "cache_key_prefix=${cache_key_prefix}" >> "$GITHUB_OUTPUT"
           echo "cache_key_primary=${cache_key_primary}" >> "$GITHUB_OUTPUT"
           echo "cache_key_fallback=${cache_key_fallback}" >> "$GITHUB_OUTPUT"
 
@@ -158,7 +177,7 @@ jobs:
           BORINGCACHE_SAVE_TOKEN: ${{ secrets.BORINGCACHE_SAVE_TOKEN || secrets.BORINGCACHE_API_TOKEN }}
 
       - name: Purge benchmark GHA cache keys
-        if: inputs.strategy == 'actions-cache'
+        if: inputs.strategy == 'actions-cache' && inputs.cache_lane != 'rolling'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -206,13 +225,27 @@ jobs:
           echo "Cannot produce reliable AC benchmark results until cache writes are enabled." >&2
           exit 1
 
+      - name: Restore rolling actions/cache history
+        if: inputs.strategy == 'actions-cache' && inputs.cache_lane == 'rolling'
+        uses: actions/cache/restore@v5
+        with:
+          path: |
+            ${{ steps.pnpm_store.outputs.dir }}
+            upstream/.turbo
+          key: ${{ steps.scope.outputs.cache_key_primary }}
+          restore-keys: |
+            ${{ steps.scope.outputs.cache_key_prefix }}-
+
       - name: Run cold + seed cache build
         id: cold_baseline_build
         env:
           PNPM_STORE_DIR: ${{ steps.pnpm_store.outputs.dir }}
         run: |
           set -euo pipefail
-          rm -rf upstream/.turbo upstream/node_modules "$PNPM_STORE_DIR"
+          rm -rf upstream/node_modules
+          if [[ "$CACHE_LANE" != "rolling" ]]; then
+            rm -rf upstream/.turbo "$PNPM_STORE_DIR"
+          fi
           if [[ -n "$PNPM_STORE_DIR" ]]; then
             mkdir -p "$PNPM_STORE_DIR"
           fi
@@ -320,7 +353,15 @@ jobs:
         run: |
           set -euo pipefail
 
-          cache_scope="${BENCHMARK_ID}-run-r${GITHUB_RUN_ID}-a${GITHUB_RUN_ATTEMPT}"
+          ref_slug="$(printf '%s' "${GITHUB_REF_NAME}" | tr -c 'A-Za-z0-9._-' '-')"
+          ref_slug="${ref_slug#-}"
+          ref_slug="${ref_slug%-}"
+          ref_slug="${ref_slug:-main}"
+          if [[ "$CACHE_LANE" == "rolling" ]]; then
+            cache_scope="${BENCHMARK_ID}-rolling-${ref_slug}"
+          else
+            cache_scope="${BENCHMARK_ID}-run-r${GITHUB_RUN_ID}-a${GITHUB_RUN_ATTEMPT}"
+          fi
           tag_turbo="${cache_scope}-turbo"
           tag_pnpm="${tag_turbo}-pnpm-store"
 
@@ -487,7 +528,11 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          bytes="$(./scripts/sum-gha-cache-by-key.sh "${{ needs.seed-cache.outputs.seed_cache_key }}" "${{ needs.seed-cache.outputs.scope_started_at }}")"
+          args=("${{ inputs.cache_lane == 'rolling' && needs.seed-cache.outputs.cache_key_prefix || needs.seed-cache.outputs.seed_cache_key }}")
+          if [[ -n "${{ inputs.cache_lane == 'rolling' && '' || needs.seed-cache.outputs.scope_started_at }}" ]]; then
+            args+=("${{ inputs.cache_lane == 'rolling' && '' || needs.seed-cache.outputs.scope_started_at }}")
+          fi
+          bytes="$(./scripts/sum-gha-cache-by-key.sh "${args[@]}")"
           echo "bytes=${bytes}" >> "$GITHUB_OUTPUT"
 
       - name: Capture committed upstream ref
@@ -500,18 +545,19 @@ jobs:
           ./scripts/write-benchmark-artifacts.sh \
             --benchmark "$BENCHMARK_ID" \
             --strategy "${{ inputs.strategy }}" \
+            --lane "$CACHE_LANE" \
             --project-repo "$PROJECT_REPO" \
             --project-ref "${{ steps.upstream_ref.outputs.sha }}" \
             --cold-seconds "${{ needs.seed-cache.outputs.cold_seconds }}" \
             --warm1-seconds "${{ steps.timings.outputs.warm1_seconds }}" \
             --cache-storage-bytes "${{ inputs.strategy == 'boringcache' && steps.bc_cache_size.outputs.bytes || steps.ac_cache_size.outputs.bytes }}" \
             --cache-storage-source "${{ inputs.strategy == 'boringcache' && 'boringcache-check' || 'github-actions-cache-api' }}" \
-            --hit-behavior-note "${{ inputs.strategy == 'boringcache' && 'Cold+seed run uses boringcache/one in mode=turbo-proxy with setup=mise for tooling, writes an empty run-scoped Turbo remote cache, and archives only the pnpm store. Warm1 restores that same pnpm store on a fresh runner and rebuilds the same pinned source tree against the seeded Turbo remote cache in read-only mode.' || 'Cold+seed run builds from scratch and saves the pnpm store plus local .turbo cache to actions/cache under a run-scoped key while recording cold timing. Warm1 restores that same key on a fresh runner and rebuilds the same pinned source tree without synthetic mutations.' }}"
+            --hit-behavior-note "${{ inputs.cache_lane == 'rolling' && (inputs.strategy == 'boringcache' && 'Rolling lane: the first build restores the stable pnpm store and Turbo remote cache history carried across upstream syncs before rebuilding the new pinned tree. Warm1 then reuses the cache state written by that first build on the current commit.' || 'Rolling lane: the first build restores the stable pnpm store and local .turbo cache history carried across upstream syncs before rebuilding the new pinned tree. Warm1 then reuses the cache state written by that first build on the current commit.') || (inputs.strategy == 'boringcache' && 'Fresh lane: cold+seed run uses boringcache/one in mode=turbo-proxy with setup=mise for tooling, writes an empty run-scoped Turbo remote cache, and archives only the pnpm store. Warm1 restores that same pnpm store on a fresh runner and rebuilds the same pinned source tree against the seeded Turbo remote cache in read-only mode.' || 'Fresh lane: cold+seed run builds from scratch and saves the pnpm store plus local .turbo cache to actions/cache under a run-scoped key while recording cold timing. Warm1 restores that same key on a fresh runner and rebuilds the same pinned source tree without synthetic mutations.') }}"
 
       - name: Upload benchmark artifacts
         uses: actions/upload-artifact@v6
         with:
-          name: benchmark-${{ env.BENCHMARK_ID }}-${{ inputs.strategy }}
+          name: benchmark-${{ env.BENCHMARK_ID }}-${{ inputs.strategy }}-${{ env.CACHE_LANE }}
           path: |
             ${{ steps.artifact_files.outputs.json_path }}
             ${{ steps.artifact_files.outputs.md_path }}

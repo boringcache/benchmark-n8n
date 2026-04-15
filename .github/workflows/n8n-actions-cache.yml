@@ -1,9 +1,18 @@
 name: "n8n - Actions Cache"
 run-name: >-
-  AC | ${{ github.event_name == 'push' && github.event.head_commit.message || github.event_name == 'pull_request' && format('PR #{0}', github.event.pull_request.number) || format('Manual dispatch ({0})', github.ref_name) }}
+  ${{ format('{0} | {1}', github.event_name == 'workflow_dispatch' && inputs.cache_lane == 'rolling' && 'AC Rolling' || 'AC Fresh', github.event_name == 'push' && github.event.head_commit.message || github.event_name == 'pull_request' && format('PR #{0}', github.event.pull_request.number) || format('Manual dispatch ({0})', github.ref_name)) }}
 
 on:
   workflow_dispatch:
+    inputs:
+      cache_lane:
+        description: "Benchmark lane"
+        required: false
+        type: choice
+        default: fresh
+        options:
+          - fresh
+          - rolling
   push:
     branches:
       - main
@@ -32,6 +41,7 @@ jobs:
       benchmark_id: n8n
       project_repo: n8n-io/n8n
       strategy: actions-cache
+      cache_lane: ${{ github.event_name == 'workflow_dispatch' && inputs.cache_lane || 'fresh' }}
       node_version: "24.13.1"
       install_command: CI=1 pnpm install --frozen-lockfile
       build_command: CI=1 pnpm turbo run build --summarize
