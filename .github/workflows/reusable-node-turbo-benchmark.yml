@@ -236,7 +236,7 @@ jobs:
           restore-keys: |
             ${{ steps.scope.outputs.cache_key_prefix }}-
 
-      - name: ${{ inputs.cache_lane == 'rolling' && 'Run rolling seed build' || 'Run fresh seed build' }}
+      - name: ${{ inputs.cache_lane == 'rolling' && 'Run rolling seed-only build' || 'Run fresh seed build' }}
         id: cold_baseline_build
         env:
           PNPM_STORE_DIR: ${{ steps.pnpm_store.outputs.dir }}
@@ -315,6 +315,7 @@ jobs:
   scenario-builds:
     name: Turbo Scenario (${{ matrix.phase }}) (${{ inputs.strategy }})
     needs: seed-cache
+    if: ${{ inputs.cache_lane != 'rolling' }}
     runs-on: ubuntu-latest
     timeout-minutes: 180
     env:
@@ -462,6 +463,7 @@ jobs:
   finalize-benchmark:
     name: Finalize benchmark artifacts
     needs: [seed-cache, scenario-builds]
+    if: ${{ always() && needs.seed-cache.result == 'success' && (needs.scenario-builds.result == 'success' || needs.scenario-builds.result == 'skipped') }}
     runs-on: ubuntu-latest
     timeout-minutes: 120
     steps:
@@ -482,6 +484,7 @@ jobs:
           cache-runtime: false
 
       - name: Download scenario timing artifacts
+        if: ${{ inputs.cache_lane != 'rolling' }}
         uses: actions/download-artifact@v8
         with:
           pattern: benchmark-phase-${{ env.BENCHMARK_ID }}-${{ inputs.strategy }}-*
@@ -489,6 +492,7 @@ jobs:
           merge-multiple: true
 
       - name: Collect scenario timings
+        if: ${{ inputs.cache_lane != 'rolling' }}
         id: timings
         run: |
           set -euo pipefail
@@ -516,7 +520,7 @@ jobs:
         if: inputs.strategy == 'boringcache'
         id: bc_cache_size
         env:
-          BORINGCACHE_API_TOKEN: ${{ secrets.BORINGCACHE_API_TOKEN || secrets.BORINGCACHE_RESTORE_TOKEN }}
+          BORINGCACHE_RESTORE_TOKEN: ${{ secrets.BORINGCACHE_RESTORE_TOKEN || secrets.BORINGCACHE_API_TOKEN }}
         run: |
           tags_csv="${{ needs.seed-cache.outputs.tags_csv }}"
           bytes="$(./scripts/sum-boringcache-check-sizes.sh "$BENCHMARK_WORKSPACE" "$tags_csv")"
@@ -549,10 +553,10 @@ jobs:
             --project-repo "$PROJECT_REPO" \
             --project-ref "${{ steps.upstream_ref.outputs.sha }}" \
             --cold-seconds "${{ needs.seed-cache.outputs.cold_seconds }}" \
-            --warm1-seconds "${{ steps.timings.outputs.warm1_seconds }}" \
+            --warm1-seconds "${{ inputs.cache_lane == 'rolling' && '' || steps.timings.outputs.warm1_seconds }}" \
             --cache-storage-bytes "${{ inputs.strategy == 'boringcache' && steps.bc_cache_size.outputs.bytes || steps.ac_cache_size.outputs.bytes }}" \
             --cache-storage-source "${{ inputs.strategy == 'boringcache' && 'boringcache-check' || 'github-actions-cache-api' }}" \
-            --hit-behavior-note "${{ inputs.cache_lane == 'rolling' && (inputs.strategy == 'boringcache' && 'Rolling lane: the first build restores the stable pnpm store and Turbo remote cache history carried across upstream syncs before rebuilding the new pinned tree. Warm1 then reuses the cache state written by that first build on the current commit.' || 'Rolling lane: the first build restores the stable pnpm store and local .turbo cache history carried across upstream syncs before rebuilding the new pinned tree. Warm1 then reuses the cache state written by that first build on the current commit.') || (inputs.strategy == 'boringcache' && 'Fresh lane: cold+seed run uses boringcache/one in mode=turbo-proxy with setup=mise for tooling, writes an empty run-scoped Turbo remote cache, and archives only the pnpm store. Warm1 restores that same pnpm store on a fresh runner and rebuilds the same pinned source tree against the seeded Turbo remote cache in read-only mode.' || 'Fresh lane: cold+seed run builds from scratch and saves the pnpm store plus local .turbo cache to actions/cache under a run-scoped key while recording cold timing. Warm1 restores that same key on a fresh runner and rebuilds the same pinned source tree without synthetic mutations.') }}"
+            --hit-behavior-note "${{ inputs.cache_lane == 'rolling' && 'Rolling lane: this run executes only the upstream-sync seed build; warm1 and layer-miss follow-up runs are intentionally skipped.' || (inputs.strategy == 'boringcache' && 'Fresh lane: cold+seed run uses boringcache/one in mode=turbo-proxy with setup=mise for tooling, writes an empty run-scoped Turbo remote cache, and archives only the pnpm store. Warm1 restores that same pnpm store on a fresh runner and rebuilds the same pinned source tree against the seeded Turbo remote cache in read-only mode.' || 'Fresh lane: cold+seed run builds from scratch and saves the pnpm store plus local .turbo cache to actions/cache under a run-scoped key while recording cold timing. Warm1 restores that same key on a fresh runner and rebuilds the same pinned source tree without synthetic mutations.') }}"
 
       - name: Upload benchmark artifacts
         uses: actions/upload-artifact@v6
