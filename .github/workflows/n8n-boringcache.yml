@@ -13,10 +13,6 @@ on:
         options:
           - fresh
           - rolling
-      cli_ref:
-        description: "Optional boringcache/cli ref to build and use instead of the released CLI"
-        required: false
-        type: string
   push:
     branches:
       - main
