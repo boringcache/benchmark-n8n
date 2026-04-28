@@ -1,0 +1,17 @@
+workspace = "boringcache/benchmarks"
+
+# Archive entries that complement turbo-proxy mode for fair warm/rolling
+# parity with actions/cache. The action's `cache-tag` input prefixes each
+# entry's tag at resolution, so the proxy tag (e.g. n8n-run-r123-a1-turbo)
+# also namespaces the archives below it.
+
+[entries.local]
+tag = "local"
+default_path = "upstream/.turbo"
+
+[entries.pnpm]
+tag = "pnpm-store"
+path_env = "PNPM_STORE_DIR"
+
+[profiles.benchmark]
+entries = ["local", "pnpm"]
