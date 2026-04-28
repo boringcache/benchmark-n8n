@@ -167,7 +167,6 @@ jobs:
           verbose: true
         env:
           PNPM_STORE_DIR: ${{ steps.pnpm_store.outputs.dir }}
-          BORINGCACHE_ALLOW_EXTERNAL_SYMLINKS: '1'
           BORINGCACHE_RESTORE_TOKEN: ${{ secrets.BORINGCACHE_RESTORE_TOKEN || secrets.BORINGCACHE_API_TOKEN }}
           BORINGCACHE_SAVE_TOKEN: ${{ secrets.BORINGCACHE_SAVE_TOKEN || secrets.BORINGCACHE_API_TOKEN }}
 
@@ -416,21 +415,14 @@ jobs:
           verbose: true
         env:
           PNPM_STORE_DIR: ${{ steps.pnpm_store.outputs.dir }}
-          BORINGCACHE_ALLOW_EXTERNAL_SYMLINKS: '1'
           BORINGCACHE_RESTORE_TOKEN: ${{ secrets.BORINGCACHE_RESTORE_TOKEN || secrets.BORINGCACHE_API_TOKEN }}
 
       - name: Verify hybrid archives restored
         if: inputs.strategy == 'boringcache'
-        env:
-          PNPM_STORE_DIR: ${{ steps.pnpm_store.outputs.dir }}
         run: |
           set -euo pipefail
           if [[ ! -d upstream/.turbo ]] || [[ -z "$(ls -A upstream/.turbo 2>/dev/null)" ]]; then
             echo "Missing or empty upstream/.turbo after BoringCache restore" >&2
-            exit 1
-          fi
-          if [[ ! -d "${PNPM_STORE_DIR}" ]] || [[ -z "$(ls -A "${PNPM_STORE_DIR}" 2>/dev/null)" ]]; then
-            echo "Missing or empty pnpm store at ${PNPM_STORE_DIR} after BoringCache restore" >&2
             exit 1
           fi
 
@@ -568,7 +560,7 @@ jobs:
             --warm1-seconds "${{ inputs.cache_lane == 'rolling' && '' || steps.timings.outputs.warm1_seconds }}" \
             --cache-storage-bytes "${{ inputs.strategy == 'boringcache' && steps.bc_cache_size.outputs.bytes || steps.ac_cache_size.outputs.bytes }}" \
             --cache-storage-source "${{ inputs.strategy == 'boringcache' && 'boringcache-check' || 'github-actions-cache-api' }}" \
-            --hit-behavior-note "${{ inputs.cache_lane == 'rolling' && 'Rolling lane: this run executes only the upstream-sync seed build; warm1 follow-up runs are intentionally skipped.' || (inputs.strategy == 'boringcache' && 'Fresh lane: cold+seed run uses boringcache/one in mode=turbo-proxy with setup=mise for tooling, writes an empty run-scoped Turbo remote cache, and archives the pnpm store plus the local .turbo task cache via the benchmark profile in .boringcache.toml. Warm1 restores both archives on a fresh runner and rebuilds the same pinned source tree against the seeded Turbo remote cache in read-only mode.' || 'Fresh lane: cold+seed run builds from scratch and saves the pnpm store plus local .turbo cache to actions/cache under a run-scoped key while recording cold timing. Warm1 restores that same key on a fresh runner and rebuilds the same pinned source tree without synthetic mutations.') }}"
+            --hit-behavior-note "${{ inputs.cache_lane == 'rolling' && 'Rolling lane: this run executes only the upstream-sync seed build; warm1 follow-up runs are intentionally skipped.' || (inputs.strategy == 'boringcache' && 'Fresh lane: cold+seed run uses boringcache/one in mode=turbo-proxy with setup=mise for tooling, writes an empty run-scoped Turbo remote cache, and archives the local .turbo task cache via the benchmark profile in .boringcache.toml. Warm1 restores that archive on a fresh runner and re-runs pnpm install before rebuilding the same pinned source tree against the seeded Turbo remote cache in read-only mode. The pnpm store is intentionally not archived under boringcache/one@v1 today: pnpms workspace-back symlinks require the CLI --allow-external-symlinks opt-in, which the action does not yet expose.' || 'Fresh lane: cold+seed run builds from scratch and saves the pnpm store plus local .turbo cache to actions/cache under a run-scoped key while recording cold timing. Warm1 restores that same key on a fresh runner and rebuilds the same pinned source tree without synthetic mutations.') }}"
 
       - name: Upload benchmark artifacts
         uses: actions/upload-artifact@v6
