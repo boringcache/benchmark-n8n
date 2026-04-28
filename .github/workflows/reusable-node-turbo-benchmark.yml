@@ -167,6 +167,7 @@ jobs:
           verbose: true
         env:
           PNPM_STORE_DIR: ${{ steps.pnpm_store.outputs.dir }}
+          BORINGCACHE_ALLOW_EXTERNAL_SYMLINKS: '1'
           BORINGCACHE_RESTORE_TOKEN: ${{ secrets.BORINGCACHE_RESTORE_TOKEN || secrets.BORINGCACHE_API_TOKEN }}
           BORINGCACHE_SAVE_TOKEN: ${{ secrets.BORINGCACHE_SAVE_TOKEN || secrets.BORINGCACHE_API_TOKEN }}
 
@@ -415,6 +416,7 @@ jobs:
           verbose: true
         env:
           PNPM_STORE_DIR: ${{ steps.pnpm_store.outputs.dir }}
+          BORINGCACHE_ALLOW_EXTERNAL_SYMLINKS: '1'
           BORINGCACHE_RESTORE_TOKEN: ${{ secrets.BORINGCACHE_RESTORE_TOKEN || secrets.BORINGCACHE_API_TOKEN }}
 
       - name: Verify hybrid archives restored
