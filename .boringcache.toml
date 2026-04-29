@@ -5,16 +5,19 @@ workspace = "boringcache/benchmarks"
 # entry's tag at resolution, so the proxy tag (e.g. n8n-run-r123-a1-turbo)
 # also namespaces the archives below it.
 #
-# Note on pnpm store: the pnpm store contains workspace-back symlinks
-# whose targets escape the restore root by design (e.g.
-# .pnpm-store/v10/projects/HASH/ -> ../../../upstream). CLI 1.12.55+
-# requires opt-in via --allow-external-symlinks, but boringcache/one@v1
-# does not yet expose that flag. Until it does, we archive only the
-# Turbo task cache; pnpm install re-runs on warm (loses ~30s vs AC).
+# pnpm store entries point back to upstream/ via workspace-back symlinks
+# (.pnpm-store/v10/projects/HASH/ -> ../../../upstream). CLI 1.12.55+
+# rejects those by default; boringcache/one@v1 v1.12.75+ exposes the
+# `allow-external-symlinks: true` opt-in, which the workflow sets on
+# both BC action calls.
 
 [entries.local]
 tag = "local"
 default_path = "upstream/.turbo"
 
+[entries.pnpm]
+tag = "pnpm-store"
+path_env = "PNPM_STORE_DIR"
+
 [profiles.benchmark]
-entries = ["local"]
+entries = ["local", "pnpm"]
