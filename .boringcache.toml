@@ -1,4 +1,4 @@
-workspace = "boringcache/benchmarks"
+workspace = "boringcache/benchmark-n8n"
 
 # Turbo remote-cache benchmark. boringcache/one mode=turbo-proxy owns the
 # task-output cache, so the benchmark profile archives only the pnpm store
