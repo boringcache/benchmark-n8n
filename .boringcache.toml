@@ -9,7 +9,7 @@ workspace = "boringcache/benchmark-n8n"
 # (.pnpm-store/v10/projects/HASH/ -> ../../../upstream). CLI 1.12.55+
 # rejects those by default; boringcache/one@v1 v1.12.75+ exposes the
 # `allow-external-symlinks: true` opt-in, which the workflow sets on
-# both BC action calls.
+# both BoringCache action calls.
 
 [entries.pnpm]
 tag = "pnpm-store"
