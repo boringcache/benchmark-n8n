@@ -1,0 +1,71 @@
+name: "n8n Docker - GitHub Actions Cache"
+run-name: >-
+  ${{ format('{0} | {1}', github.event_name == 'workflow_dispatch' && inputs.cache_lane == 'rolling' && 'GitHub Actions Cache Rolling' || 'GitHub Actions Cache Fresh', github.event_name == 'schedule' && 'Weekly fresh' || github.event_name == 'pull_request' && format('PR #{0}', github.event.pull_request.number) || format('Manual dispatch ({0})', github.ref_name)) }}
+
+on:
+  workflow_dispatch:
+    inputs:
+      cache_lane:
+        description: "Benchmark lane"
+        required: false
+        type: choice
+        default: fresh
+        options:
+          - fresh
+          - rolling
+  schedule:
+    - cron: "30 3 * * 6"
+  pull_request:
+    paths:
+      - ".gitmodules"
+      - ".github/workflows/n8n-docker-boringcache.yml"
+      - ".github/workflows/n8n-docker-actions-cache.yml"
+      - ".github/workflows/reusable-docker-buildkit-benchmark.yml"
+      - "README.md"
+      - "scenarios/**"
+      - "scripts/**"
+      - "upstream"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref_name }}-${{ github.event_name == 'workflow_dispatch' && inputs.cache_lane || 'fresh' }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  actions: write
+
+jobs:
+  benchmark:
+    strategy:
+      fail-fast: false
+      matrix:
+        image:
+          - benchmark_id: n8n-docker
+            dockerfile_path: upstream/docker/images/n8n/Dockerfile
+            image_tag: n8n-benchmark:latest
+          - benchmark_id: n8n-runners
+            dockerfile_path: upstream/docker/images/runners/Dockerfile
+            image_tag: n8n-runners-benchmark:latest
+          - benchmark_id: n8n-runners-distroless
+            dockerfile_path: upstream/docker/images/runners/Dockerfile.distroless
+            image_tag: n8n-runners-distroless-benchmark:latest
+    uses: ./.github/workflows/reusable-docker-buildkit-benchmark.yml
+    with:
+      strategy: actions-cache
+      cache_lane: ${{ github.event_name == 'workflow_dispatch' && inputs.cache_lane || 'fresh' }}
+      benchmark_id: ${{ matrix.image.benchmark_id }}
+      project_repo: n8n-io/n8n
+      dockerfile_path: ${{ matrix.image.dockerfile_path }}
+      docker_context: upstream
+      docker_build_args: |
+        --build-arg=NODE_VERSION=24.15.0
+        --build-arg=N8N_VERSION=snapshot
+        --build-arg=N8N_RELEASE_TYPE=dev
+      image_tag: ${{ matrix.image.image_tag }}
+      prepare_command: CI=true N8N_SKIP_LICENSES=true pnpm build:n8n
+      prepare_node_version: "24.13.1"
+      benchmark_workspace: ${{ github.repository }}
+    secrets: inherit
+    permissions:
+      contents: read
+      actions: write

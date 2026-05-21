@@ -1,6 +1,6 @@
 # benchmark-n8n
 
-Public n8n Turbo benchmark runner for BoringCache vs GitHub Actions cache.
+Public n8n benchmark runner for BoringCache vs GitHub Actions cache.
 
 This repo exists separately from [`boringcache/benchmarks`](https://github.com/boringcache/benchmarks) so the benchmark keeps:
 
@@ -26,12 +26,17 @@ Fresh lane runs a no-prior-cache cold build plus one warm rerun for each backend
 
 Rolling lane records the upstream commit build as-is after each upstream sync against the prior rolling cache and intentionally skips `warm1`.
 
+The benchmark has two tool-specific surfaces:
+
+- `n8n`: Turbo build for the pnpm monorepo.
+- `n8n-docker`, `n8n-runners`, and `n8n-runners-distroless`: BuildKit builds for the three Docker images n8n publishes. These lanes prepare the n8n build artifacts before the measured Docker build, so the timed section isolates Docker layer/cache behavior rather than rerunning the Turbo benchmark inside the Docker lane.
+
 The story this benchmark is meant to show is:
 
 - speed on fresh cold and warm paths
 - commit-build behavior on normal upstream syncs in the rolling lane
 - storage footprint in each backend
-- whether Turbo cache reuse stays reliable on fresh runners
+- whether Turbo and BuildKit cache reuse stay reliable on fresh runners
 
 ## Token Model
 

@@ -3,6 +3,16 @@ name: "Rolling Benchmark Dispatch"
 on:
   workflow_dispatch:
     inputs:
+      run_turbo:
+        description: "Dispatch the Turbo rolling benchmark pair"
+        required: false
+        type: boolean
+        default: true
+      run_docker:
+        description: "Dispatch the Docker rolling benchmark pair"
+        required: false
+        type: boolean
+        default: true
       blob_download_concurrency:
         description: "Optional BORINGCACHE_BLOB_DOWNLOAD_CONCURRENCY override for the BoringCache run"
         required: false
@@ -27,8 +37,9 @@ permissions:
   actions: write
 
 jobs:
-  dispatch:
-    name: Dispatch rolling benchmark pair
+  dispatch-turbo:
+    name: Dispatch Turbo rolling benchmark pair
+    if: ${{ github.event_name != 'workflow_dispatch' || inputs.run_turbo }}
     runs-on: ubuntu-latest
     steps:
       - name: Dispatch GitHub Actions Cache rolling lane
@@ -41,6 +52,26 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: >-
           gh workflow run "n8n-boringcache.yml" --repo "$GITHUB_REPOSITORY" --ref "${{ github.ref_name }}"
+          -f cache_lane=rolling
+          -f blob_download_concurrency="${{ inputs.blob_download_concurrency || '' }}"
+          -f blob_prefetch_concurrency="${{ inputs.blob_prefetch_concurrency || '' }}"
+          -f oci_stream_through_min_bytes="${{ inputs.oci_stream_through_min_bytes || '' }}"
+
+  dispatch-docker:
+    name: Dispatch Docker rolling benchmark pair
+    if: ${{ github.event_name != 'workflow_dispatch' || inputs.run_docker }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Dispatch GitHub Actions Cache Docker rolling lane
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run "n8n-docker-actions-cache.yml" --repo "$GITHUB_REPOSITORY" --ref "${{ github.ref_name }}" -f cache_lane=rolling
+
+      - name: Dispatch BoringCache Docker rolling lane
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: >-
+          gh workflow run "n8n-docker-boringcache.yml" --repo "$GITHUB_REPOSITORY" --ref "${{ github.ref_name }}"
           -f cache_lane=rolling
           -f blob_download_concurrency="${{ inputs.blob_download_concurrency || '' }}"
           -f blob_prefetch_concurrency="${{ inputs.blob_prefetch_concurrency || '' }}"
