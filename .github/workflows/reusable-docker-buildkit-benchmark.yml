@@ -35,6 +35,10 @@ on:
         required: false
         type: string
         default: ''
+      prepare_install_command:
+        required: false
+        type: string
+        default: ''
       prepare_node_version:
         required: false
         type: string
@@ -80,6 +84,7 @@ env:
   CACHE_LANE: ${{ inputs.cache_lane }}
   DOCKER_BUILD_EXTRA_ARGS: ${{ inputs.docker_build_args }}
   PREPARE_COMMAND: ${{ inputs.prepare_command }}
+  PREPARE_INSTALL_COMMAND: ${{ inputs.prepare_install_command }}
   PREPARE_NODE_VERSION: ${{ inputs.prepare_node_version }}
   BORINGCACHE_BLOB_DOWNLOAD_CONCURRENCY: ${{ inputs.blob_download_concurrency }}
   BORINGCACHE_BLOB_PREFETCH_CONCURRENCY: ${{ inputs.blob_prefetch_concurrency }}
@@ -210,18 +215,31 @@ jobs:
         run: ./scripts/prepare-source.sh base
 
       - name: Setup Node for Docker build artifacts
-        if: inputs.prepare_command != ''
+        if: inputs.prepare_install_command != '' || inputs.prepare_command != ''
         uses: actions/setup-node@v6
         with:
           node-version: ${{ inputs.prepare_node_version }}
+
+      - name: Enable Node package manager for Docker build artifacts
+        if: inputs.prepare_install_command != '' || inputs.prepare_command != ''
+        run: |
+          set -euo pipefail
+          cd upstream
+          corepack enable
+          corepack install
+
+      - name: Install Docker build artifact dependencies
+        if: inputs.prepare_install_command != ''
+        run: |
+          set -euo pipefail
+          cd upstream
+          eval "$PREPARE_INSTALL_COMMAND"
 
       - name: Prepare Docker build artifacts
         if: inputs.prepare_command != ''
         run: |
           set -euo pipefail
           cd upstream
-          corepack enable
-          corepack install
           eval "$PREPARE_COMMAND"
 
       - name: Start seed timing
@@ -546,18 +564,31 @@ jobs:
         run: ./scripts/prepare-source.sh warm1
 
       - name: Setup Node for Docker build artifacts
-        if: inputs.prepare_command != ''
+        if: inputs.prepare_install_command != '' || inputs.prepare_command != ''
         uses: actions/setup-node@v6
         with:
           node-version: ${{ inputs.prepare_node_version }}
+
+      - name: Enable Node package manager for Docker build artifacts
+        if: inputs.prepare_install_command != '' || inputs.prepare_command != ''
+        run: |
+          set -euo pipefail
+          cd upstream
+          corepack enable
+          corepack install
+
+      - name: Install Docker build artifact dependencies
+        if: inputs.prepare_install_command != ''
+        run: |
+          set -euo pipefail
+          cd upstream
+          eval "$PREPARE_INSTALL_COMMAND"
 
       - name: Prepare Docker build artifacts
         if: inputs.prepare_command != ''
         run: |
           set -euo pipefail
           cd upstream
-          corepack enable
-          corepack install
           eval "$PREPARE_COMMAND"
 
       - name: Start scenario timing

@@ -78,6 +78,7 @@ jobs:
         --build-arg=N8N_VERSION=snapshot
         --build-arg=N8N_RELEASE_TYPE=dev
       image_tag: ${{ matrix.image.image_tag }}
+      prepare_install_command: CI=true pnpm install --frozen-lockfile
       prepare_command: CI=true N8N_SKIP_LICENSES=true pnpm build:n8n
       prepare_node_version: "24.13.1"
       cli_platform: linux-amd64
