@@ -31,6 +31,8 @@ The benchmark has two tool-specific surfaces:
 - `n8n`: Turbo build for the pnpm monorepo.
 - `n8n-docker`, `n8n-runners`, and `n8n-runners-distroless`: BuildKit builds for the three Docker images n8n publishes. These lanes prepare the n8n build artifacts before the measured Docker build, so the timed section isolates Docker layer/cache behavior rather than rerunning the Turbo benchmark inside the Docker lane.
 
+Scheduled, PR, and rolling-dispatch Docker runs use [`.github/workflows/n8n-docker-benchmark.yml`](.github/workflows/n8n-docker-benchmark.yml), which runs GitHub Actions Cache, BoringCache OCI, and BoringCache Native side by side for all three images. The provider-specific Docker workflows remain for manual diagnostics.
+
 The story this benchmark is meant to show is:
 
 - speed on fresh cold and warm paths

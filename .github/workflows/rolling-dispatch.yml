@@ -58,20 +58,15 @@ jobs:
           -f oci_stream_through_min_bytes="${{ inputs.oci_stream_through_min_bytes || '' }}"
 
   dispatch-docker:
-    name: Dispatch Docker rolling benchmark pair
+    name: Dispatch Docker rolling benchmark
     if: ${{ github.event_name != 'workflow_dispatch' || inputs.run_docker }}
     runs-on: ubuntu-latest
     steps:
-      - name: Dispatch GitHub Actions Cache Docker rolling lane
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: gh workflow run "n8n-docker-actions-cache.yml" --repo "$GITHUB_REPOSITORY" --ref "${{ github.ref_name }}" -f cache_lane=rolling
-
-      - name: Dispatch BoringCache Docker rolling lane
+      - name: Dispatch Docker rolling benchmark
         env:
           GH_TOKEN: ${{ github.token }}
         run: >-
-          gh workflow run "n8n-docker-boringcache.yml" --repo "$GITHUB_REPOSITORY" --ref "${{ github.ref_name }}"
+          gh workflow run "n8n-docker-benchmark.yml" --repo "$GITHUB_REPOSITORY" --ref "${{ github.ref_name }}"
           -f cache_lane=rolling
           -f blob_download_concurrency="${{ inputs.blob_download_concurrency || '' }}"
           -f blob_prefetch_concurrency="${{ inputs.blob_prefetch_concurrency || '' }}"
