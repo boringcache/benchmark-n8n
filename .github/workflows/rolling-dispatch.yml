@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       run_turbo:
-        description: "Dispatch the Turbo rolling benchmark pair"
+        description: "Dispatch the Turbo rolling benchmark"
         required: false
         type: boolean
         default: true
@@ -38,20 +38,15 @@ permissions:
 
 jobs:
   dispatch-turbo:
-    name: Dispatch Turbo rolling benchmark pair
+    name: Dispatch Turbo rolling benchmark
     if: ${{ github.event_name != 'workflow_dispatch' || inputs.run_turbo }}
     runs-on: ubuntu-latest
     steps:
-      - name: Dispatch GitHub Actions Cache rolling lane
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: gh workflow run "n8n-actions-cache.yml" --repo "$GITHUB_REPOSITORY" --ref "${{ github.ref_name }}" -f cache_lane=rolling
-
-      - name: Dispatch BoringCache rolling lane
+      - name: Dispatch Turbo rolling benchmark
         env:
           GH_TOKEN: ${{ github.token }}
         run: >-
-          gh workflow run "n8n-boringcache.yml" --repo "$GITHUB_REPOSITORY" --ref "${{ github.ref_name }}"
+          gh workflow run "n8n-benchmark.yml" --repo "$GITHUB_REPOSITORY" --ref "${{ github.ref_name }}"
           -f cache_lane=rolling
           -f blob_download_concurrency="${{ inputs.blob_download_concurrency || '' }}"
           -f blob_prefetch_concurrency="${{ inputs.blob_prefetch_concurrency || '' }}"

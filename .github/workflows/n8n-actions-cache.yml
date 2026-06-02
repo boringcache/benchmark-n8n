@@ -13,19 +13,6 @@ on:
         options:
           - fresh
           - rolling
-  schedule:
-    - cron: "0 3 * * 6"
-  pull_request:
-    paths:
-      - ".gitmodules"
-      - ".github/workflows/n8n-boringcache.yml"
-      - ".github/workflows/n8n-actions-cache.yml"
-      - ".github/workflows/reusable-node-turbo-benchmark.yml"
-      - "README.md"
-      - "scenarios/**"
-      - "scripts/**"
-      - "upstream"
-
 permissions:
   contents: read
   actions: write
