@@ -112,13 +112,13 @@ jobs:
           if [[ "$CACHE_LANE" == "rolling" ]]; then
             cache_scope="${BENCHMARK_ID}-rolling-${ref_slug}"
             cache_key_prefix="ac-${BENCHMARK_ID}-rolling-${ref_slug}"
-            cache_key_primary="${cache_key_prefix}-r${GITHUB_RUN_ID}-a${GITHUB_RUN_ATTEMPT}-seed1"
-            cache_key_fallback="${cache_key_prefix}-r${GITHUB_RUN_ID}-a${GITHUB_RUN_ATTEMPT}-seed2"
+            cache_key_primary="${cache_key_prefix}-r${GITHUB_RUN_ID}-a${GITHUB_RUN_ATTEMPT}-build1"
+            cache_key_fallback="${cache_key_prefix}-r${GITHUB_RUN_ID}-a${GITHUB_RUN_ATTEMPT}-build2"
           else
             cache_scope="${BENCHMARK_ID}-run-r${GITHUB_RUN_ID}-a${GITHUB_RUN_ATTEMPT}"
             cache_key_prefix="ac-${cache_scope}"
-            cache_key_primary="ac-${cache_scope}-seed1"
-            cache_key_fallback="ac-${cache_scope}-seed2"
+            cache_key_primary="ac-${cache_scope}-build1"
+            cache_key_fallback="ac-${cache_scope}-build2"
           fi
           tag_turbo="${cache_scope}-turbo"
 
@@ -153,7 +153,7 @@ jobs:
           mkdir -p "${PNPM_STORE_DIR}"
           echo "dir=${PNPM_STORE_DIR}" >> "$GITHUB_OUTPUT"
 
-      - name: Start seed timing
+      - name: Start build timing
         id: seed_timing_start
         run: echo "started_at=$(date +%s)" >> "$GITHUB_OUTPUT"
 
@@ -182,7 +182,7 @@ jobs:
           PNPM_STORE_DIR: ${{ steps.pnpm_store.outputs.dir }}
           BORINGCACHE_RESTORE_TOKEN: ${{ secrets.BORINGCACHE_RESTORE_TOKEN || secrets.BORINGCACHE_API_TOKEN }}
           BORINGCACHE_SAVE_TOKEN: ${{ secrets.BORINGCACHE_SAVE_TOKEN || secrets.BORINGCACHE_API_TOKEN }}
-          BORINGCACHE_OBSERVABILITY_JSONL_PATH: ${{ runner.temp }}/${{ env.BENCHMARK_ID }}-boringcache-seed-observability.jsonl
+          BORINGCACHE_OBSERVABILITY_JSONL_PATH: ${{ runner.temp }}/${{ env.BENCHMARK_ID }}-boringcache-build-observability.jsonl
 
       - name: Purge GitHub Actions cache keys
         if: inputs.strategy == 'actions-cache' && inputs.cache_lane != 'rolling'
@@ -277,7 +277,7 @@ jobs:
 
           phase_start="${{ steps.seed_timing_start.outputs.started_at }}"
           start="$(date +%s)"
-          ./run-node-turbo-phase.sh seed
+          ./run-node-turbo-phase.sh cold
           end="$(date +%s)"
           echo "seconds=$((end - phase_start))" >> "$GITHUB_OUTPUT"
           echo "build_seconds=$((end - start))" >> "$GITHUB_OUTPUT"
@@ -285,7 +285,7 @@ jobs:
       - name: Capture BoringCache session summary
         if: inputs.strategy == 'boringcache' && always()
         env:
-          BORINGCACHE_OBSERVABILITY_JSONL_PATH: ${{ runner.temp }}/${{ env.BENCHMARK_ID }}-boringcache-seed-observability.jsonl
+          BORINGCACHE_OBSERVABILITY_JSONL_PATH: ${{ runner.temp }}/${{ env.BENCHMARK_ID }}-boringcache-build-observability.jsonl
         run: |
           set -euo pipefail
           mkdir -p benchmark-session-summary
@@ -304,7 +304,7 @@ jobs:
           path: benchmark-session-summary/benchmark-session-summary.json
           if-no-files-found: ignore
 
-      - name: Save seeded cache (primary key)
+      - name: Save build cache (primary key)
         if: inputs.strategy == 'actions-cache'
         id: save_seed_primary
         continue-on-error: true
@@ -315,7 +315,7 @@ jobs:
             upstream/.turbo
           key: ${{ steps.scope.outputs.cache_key_primary }}
 
-      - name: Save seeded cache (fallback key)
+      - name: Save build cache (fallback key)
         if: inputs.strategy == 'actions-cache' && steps.save_seed_primary.outcome != 'success'
         id: save_seed_fallback
         continue-on-error: true
@@ -326,7 +326,7 @@ jobs:
             upstream/.turbo
           key: ${{ steps.scope.outputs.cache_key_fallback }}
 
-      - name: Resolve seeded cache key
+      - name: Resolve build cache key
         if: inputs.strategy == 'actions-cache'
         id: seed_cache_key
         env:
@@ -352,14 +352,14 @@ jobs:
           done
 
           if [[ -z "$key" ]]; then
-            echo "Failed to verify seeded cache key in GitHub Actions Cache API (likely cache save/read-only budget issue)." >&2
+            echo "Failed to verify build cache key in GitHub Actions Cache API (likely cache save/read-only budget issue)." >&2
             echo "Primary save outcome: ${{ steps.save_seed_primary.outcome }}" >&2
             echo "Fallback save outcome: ${{ steps.save_seed_fallback.outcome }}" >&2
             exit 1
           fi
 
           echo "key=${key}" >> "$GITHUB_OUTPUT"
-          echo "Using seeded cache key: ${key}"
+          echo "Using build cache key: ${key}"
 
   scenario-builds:
     name: Warm
@@ -511,7 +511,7 @@ jobs:
       - name: Upload scenario timing artifact
         uses: actions/upload-artifact@v6
         with:
-          name: benchmark-phase-${{ env.BENCHMARK_ID }}-${{ inputs.strategy }}-warm1
+          name: benchmark-phase-${{ env.BENCHMARK_ID }}-${{ inputs.strategy }}-warm
           path: benchmark-phase/warm1.env
           if-no-files-found: error
 
@@ -638,7 +638,7 @@ jobs:
             --cache-storage-source "${{ inputs.strategy == 'boringcache' && 'boringcache-check' || 'github-actions-cache-api' }}" \
             --storage-breakdown-json "${{ inputs.strategy == 'boringcache' && steps.bc_cache_size.outputs.breakdown_path || '' }}" \
             --cache-import-status "${{ needs.seed-cache.outputs.cache_import_status }}" \
-            --hit-behavior-note "${{ inputs.cache_lane == 'rolling' && 'Rolling lane: this run builds the current upstream commit as-is with the prior rolling cache available, exports the updated cache, and records that commit build only; warm1 follow-up runs are intentionally skipped.' || (inputs.strategy == 'boringcache' && 'Fresh lane: the cold build uses boringcache/one in mode=turbo-proxy with setup=mise for tooling, writes an empty run-scoped Turbo remote cache, and archives only the pnpm store via the benchmark profile in .boringcache.toml (allow-external-symlinks: true on the action covers pnpms workspace-back symlinks). Warm1 restores the pnpm store on a fresh runner and rebuilds the same pinned source tree against the Turbo remote cache populated by the cold build in read-only mode.' || 'Fresh lane: the cold build runs from scratch and saves the pnpm store plus local .turbo cache to actions/cache under a run-scoped key while recording cold timing. Warm1 restores that same local cache key on a fresh runner and rebuilds the same pinned source tree without synthetic mutations.') }}" \
+            --hit-behavior-note "${{ inputs.cache_lane == 'rolling' && 'Rolling lane: this run builds the current upstream commit as-is with the prior rolling cache available, exports the updated cache, and records that commit build only; warm follow-up runs are intentionally skipped.' || (inputs.strategy == 'boringcache' && 'Fresh lane: the cold build uses boringcache/one in mode=turbo-proxy with setup=mise for tooling, writes an empty run-scoped Turbo remote cache, and archives only the pnpm store via the benchmark profile in .boringcache.toml (allow-external-symlinks: true on the action covers pnpms workspace-back symlinks). Warm restores the pnpm store on a fresh runner and rebuilds the same pinned source tree against the Turbo remote cache populated by the cold build in read-only mode.' || 'Fresh lane: the cold build runs from scratch and saves the pnpm store plus local .turbo cache to actions/cache under a run-scoped key while recording cold timing. Warm restores that same local cache key on a fresh runner and rebuilds the same pinned source tree without synthetic mutations.') }}" \
             "${cache_summary_args[@]}"
 
       - name: Upload benchmark artifacts
