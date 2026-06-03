@@ -48,18 +48,22 @@ permissions:
 
 jobs:
   benchmark:
+    name: ${{ matrix.buildkit_backend == 'auto' && format('BC auto / {0}', matrix.image.label) || format('BC / {0}', matrix.image.label) }}
     strategy:
       fail-fast: false
       matrix:
         buildkit_backend: ${{ fromJSON((github.event_name == 'workflow_dispatch' && inputs.buildkit_backend == 'registry') && '["registry"]' || (github.event_name == 'workflow_dispatch' && inputs.buildkit_backend == 'auto') && '["auto"]' || '["registry","auto"]') }}
         image:
-          - benchmark_id: n8n-docker
+          - label: n8n
+            benchmark_id: n8n-docker
             dockerfile_path: upstream/docker/images/n8n/Dockerfile
             image_tag: n8n-benchmark:latest
-          - benchmark_id: n8n-runners
+          - label: runners
+            benchmark_id: n8n-runners
             dockerfile_path: upstream/docker/images/runners/Dockerfile
             image_tag: n8n-runners-benchmark:latest
-          - benchmark_id: n8n-runners-distroless
+          - label: distroless
+            benchmark_id: n8n-runners-distroless
             dockerfile_path: upstream/docker/images/runners/Dockerfile.distroless
             image_tag: n8n-runners-distroless-benchmark:latest
     uses: ./.github/workflows/reusable-docker-buildkit-benchmark.yml
