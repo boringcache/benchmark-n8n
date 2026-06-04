@@ -2,17 +2,6 @@ name: "Rolling Benchmark Dispatch"
 
 on:
   workflow_dispatch:
-    inputs:
-      run_turbo:
-        description: "Dispatch the Turbo rolling benchmark"
-        required: false
-        type: boolean
-        default: true
-      run_docker:
-        description: "Dispatch the Docker rolling benchmark pair"
-        required: false
-        type: boolean
-        default: true
   push:
     branches:
       - main
@@ -27,7 +16,6 @@ permissions:
 jobs:
   dispatch-turbo:
     name: Dispatch Turbo rolling benchmark
-    if: ${{ github.event_name != 'workflow_dispatch' || inputs.run_turbo }}
     runs-on: ubuntu-latest
     steps:
       - name: Dispatch Turbo rolling benchmark
@@ -39,7 +27,6 @@ jobs:
 
   dispatch-docker:
     name: Dispatch Docker rolling benchmark
-    if: ${{ github.event_name != 'workflow_dispatch' || inputs.run_docker }}
     runs-on: ubuntu-latest
     steps:
       - name: Dispatch Docker rolling benchmark
