@@ -2,6 +2,7 @@ name: "Rolling Benchmark Dispatch"
 
 on:
   workflow_dispatch:
+    inputs:
       run_turbo:
         description: "Dispatch the Turbo rolling benchmark"
         required: false
