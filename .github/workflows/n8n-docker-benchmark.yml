@@ -224,8 +224,8 @@ jobs:
           prepare_node_version: "24.13.1"
           cli_platform: linux-amd64
           benchmark_workspace: ${{ github.repository }}
-  bc-auto-n8n:
-    name: BC auto / n8n
+  bc-native-n8n:
+    name: BC native / n8n
     runs-on: ubuntu-latest
     timeout-minutes: 180
     env:
@@ -240,12 +240,12 @@ jobs:
           fetch-depth: 1
           submodules: false
 
-      - name: BC auto
+      - name: BC native
         uses: ./.github/actions/docker-rolling-benchmark
         with:
           strategy: boringcache
-          buildkit_backend: auto
-          benchmark_id: n8n-docker-auto
+          buildkit_backend: native
+          benchmark_id: n8n-docker-native
           project_repo: n8n-io/n8n
           dockerfile_path: upstream/docker/images/n8n/Dockerfile
           docker_context: upstream
@@ -259,8 +259,8 @@ jobs:
           prepare_node_version: "24.13.1"
           cli_platform: linux-amd64
           benchmark_workspace: ${{ github.repository }}
-  bc-auto-runners:
-    name: BC auto / runners
+  bc-native-runners:
+    name: BC native / runners
     runs-on: ubuntu-latest
     timeout-minutes: 180
     env:
@@ -275,12 +275,12 @@ jobs:
           fetch-depth: 1
           submodules: false
 
-      - name: BC auto
+      - name: BC native
         uses: ./.github/actions/docker-rolling-benchmark
         with:
           strategy: boringcache
-          buildkit_backend: auto
-          benchmark_id: n8n-runners-auto
+          buildkit_backend: native
+          benchmark_id: n8n-runners-native
           project_repo: n8n-io/n8n
           dockerfile_path: upstream/docker/images/runners/Dockerfile
           docker_context: upstream
@@ -294,8 +294,8 @@ jobs:
           prepare_node_version: "24.13.1"
           cli_platform: linux-amd64
           benchmark_workspace: ${{ github.repository }}
-  bc-auto-distroless:
-    name: BC auto / distroless
+  bc-native-distroless:
+    name: BC native / distroless
     runs-on: ubuntu-latest
     timeout-minutes: 180
     env:
@@ -310,12 +310,12 @@ jobs:
           fetch-depth: 1
           submodules: false
 
-      - name: BC auto
+      - name: BC native
         uses: ./.github/actions/docker-rolling-benchmark
         with:
           strategy: boringcache
-          buildkit_backend: auto
-          benchmark_id: n8n-runners-distroless-auto
+          buildkit_backend: native
+          benchmark_id: n8n-runners-distroless-native
           project_repo: n8n-io/n8n
           dockerfile_path: upstream/docker/images/runners/Dockerfile.distroless
           docker_context: upstream
