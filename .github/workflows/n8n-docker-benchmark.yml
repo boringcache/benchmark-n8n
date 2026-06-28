@@ -285,6 +285,9 @@ jobs:
           cli_platform: linux-amd64
           benchmark_workspace: ${{ github.repository }}
 
+  # No Docker +toolcache lanes here yet: Turbo runs in prepare_command before
+  # the measured Docker build. The Docker image build itself should not be
+  # relabeled as toolcache unless a static in-Docker contract is added.
   boringcache-buildkit-backend:
     name: BC BuildKit Backend / ${{ matrix.label }}
     if: ${{ github.event_name != 'pull_request' && (inputs.prewarm_buildkit_image != '' || vars.N8N_PREWARM_BUILDKIT_IMAGE != '') }}
