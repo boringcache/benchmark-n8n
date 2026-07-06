@@ -10,6 +10,16 @@ on:
         required: false
         type: string
         default: ""
+      cli_version:
+        description: "Optional BoringCache CLI release tag for canary runs, for example vcli-canary."
+        required: false
+        type: string
+        default: ""
+      benchmark_id_suffix:
+        description: "Optional suffix appended to built-in benchmark/cache scopes for isolated comparison runs."
+        required: false
+        type: string
+        default: ""
   schedule:
     - cron: "30 3 * * 6"
   pull_request:
@@ -50,7 +60,7 @@ jobs:
         uses: ./.github/actions/docker-rolling-benchmark
         with:
           strategy: actions-cache
-          benchmark_id: n8n-docker
+          benchmark_id: n8n-docker${{ inputs.benchmark_id_suffix }}
           project_repo: n8n-io/n8n
           dockerfile_path: upstream/docker/images/n8n/Dockerfile
           docker_context: upstream
@@ -81,7 +91,7 @@ jobs:
         uses: ./.github/actions/docker-rolling-benchmark
         with:
           strategy: actions-cache
-          benchmark_id: n8n-runners
+          benchmark_id: n8n-runners${{ inputs.benchmark_id_suffix }}
           project_repo: n8n-io/n8n
           dockerfile_path: upstream/docker/images/runners/Dockerfile
           docker_context: upstream
@@ -112,7 +122,7 @@ jobs:
         uses: ./.github/actions/docker-rolling-benchmark
         with:
           strategy: actions-cache
-          benchmark_id: n8n-runners-distroless
+          benchmark_id: n8n-runners-distroless${{ inputs.benchmark_id_suffix }}
           project_repo: n8n-io/n8n
           dockerfile_path: upstream/docker/images/runners/Dockerfile.distroless
           docker_context: upstream
@@ -161,7 +171,7 @@ jobs:
         uses: ./.github/actions/docker-rolling-benchmark
         with:
           strategy: ecr-cache
-          benchmark_id: ${{ matrix.benchmark_id }}
+          benchmark_id: ${{ format('{0}{1}', matrix.benchmark_id, inputs.benchmark_id_suffix) }}
           project_repo: n8n-io/n8n
           dockerfile_path: ${{ matrix.dockerfile_path }}
           docker_context: upstream
@@ -200,7 +210,7 @@ jobs:
         with:
           strategy: boringcache
           buildkit_backend: registry
-          benchmark_id: n8n-docker
+          benchmark_id: n8n-docker${{ inputs.benchmark_id_suffix }}
           project_repo: n8n-io/n8n
           dockerfile_path: upstream/docker/images/n8n/Dockerfile
           docker_context: upstream
@@ -213,6 +223,7 @@ jobs:
           prepare_command: CI=true N8N_SKIP_LICENSES=true pnpm build:n8n
           prepare_node_version: "24.13.1"
           cli_platform: linux-amd64
+          cli_version: ${{ inputs.cli_version }}
           benchmark_workspace: ${{ github.repository }}
   bc-runners:
     name: BC OCI / runners
@@ -235,7 +246,7 @@ jobs:
         with:
           strategy: boringcache
           buildkit_backend: registry
-          benchmark_id: n8n-runners
+          benchmark_id: n8n-runners${{ inputs.benchmark_id_suffix }}
           project_repo: n8n-io/n8n
           dockerfile_path: upstream/docker/images/runners/Dockerfile
           docker_context: upstream
@@ -248,6 +259,7 @@ jobs:
           prepare_command: CI=true N8N_SKIP_LICENSES=true pnpm build:n8n
           prepare_node_version: "24.13.1"
           cli_platform: linux-amd64
+          cli_version: ${{ inputs.cli_version }}
           benchmark_workspace: ${{ github.repository }}
   bc-distroless:
     name: BC OCI / distroless
@@ -270,7 +282,7 @@ jobs:
         with:
           strategy: boringcache
           buildkit_backend: registry
-          benchmark_id: n8n-runners-distroless
+          benchmark_id: n8n-runners-distroless${{ inputs.benchmark_id_suffix }}
           project_repo: n8n-io/n8n
           dockerfile_path: upstream/docker/images/runners/Dockerfile.distroless
           docker_context: upstream
@@ -283,6 +295,7 @@ jobs:
           prepare_command: CI=true N8N_SKIP_LICENSES=true pnpm build:n8n
           prepare_node_version: "24.13.1"
           cli_platform: linux-amd64
+          cli_version: ${{ inputs.cli_version }}
           benchmark_workspace: ${{ github.repository }}
 
   # No Docker +toolcache lanes here yet: Turbo runs in prepare_command before
@@ -328,7 +341,7 @@ jobs:
         with:
           strategy: boringcache
           buildkit_backend: registry
-          benchmark_id: ${{ matrix.benchmark_id }}
+          benchmark_id: ${{ format('{0}{1}', matrix.benchmark_id, inputs.benchmark_id_suffix) }}
           project_repo: n8n-io/n8n
           dockerfile_path: ${{ matrix.dockerfile_path }}
           docker_context: upstream
@@ -341,6 +354,7 @@ jobs:
           prepare_command: CI=true N8N_SKIP_LICENSES=true pnpm build:n8n
           prepare_node_version: "24.13.1"
           cli_platform: linux-amd64
+          cli_version: ${{ inputs.cli_version }}
           benchmark_workspace: ${{ github.repository }}
           buildkit_image: ${{ inputs.prewarm_buildkit_image || vars.N8N_PREWARM_BUILDKIT_IMAGE }}
           buildkit_cache_backend: boringcache
