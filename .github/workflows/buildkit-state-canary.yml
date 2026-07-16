@@ -24,15 +24,15 @@ jobs:
         include:
           - case_id: n8n
             label: n8n
-            dockerfile: upstream/docker/images/n8n/Dockerfile
+            dockerfile: docker/images/n8n/Dockerfile
             image: n8n-state-benchmark
           - case_id: n8n-runners
             label: runners
-            dockerfile: upstream/docker/images/runners/Dockerfile
+            dockerfile: docker/images/runners/Dockerfile
             image: n8n-runners-state-benchmark
           - case_id: n8n-runners-distroless
             label: runners distroless
-            dockerfile: upstream/docker/images/runners/Dockerfile.distroless
+            dockerfile: docker/images/runners/Dockerfile.distroless
             image: n8n-runners-distroless-state-benchmark
     env:
       BORINGCACHE_API_URL: https://api.boringcache.com
