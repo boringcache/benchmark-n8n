@@ -136,59 +136,6 @@ jobs:
           prepare_node_version: "24.13.1"
           benchmark_workspace: ${{ github.repository }}
 
-  ecr-cache:
-    name: ECR / ${{ matrix.label }}
-    if: ${{ github.event_name != 'pull_request' }}
-    runs-on: ubuntu-latest
-    timeout-minutes: 180
-    permissions:
-      contents: read
-      id-token: write
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - label: n8n
-            benchmark_id: n8n-docker
-            dockerfile_path: upstream/docker/images/n8n/Dockerfile
-            image_tag: n8n-benchmark:latest
-          - label: runners
-            benchmark_id: n8n-runners
-            dockerfile_path: upstream/docker/images/runners/Dockerfile
-            image_tag: n8n-runners-benchmark:latest
-          - label: distroless
-            benchmark_id: n8n-runners-distroless
-            dockerfile_path: upstream/docker/images/runners/Dockerfile.distroless
-            image_tag: n8n-runners-distroless-benchmark:latest
-    steps:
-      - name: Checkout benchmark repo
-        uses: actions/checkout@v6
-        with:
-          fetch-depth: 1
-          submodules: false
-
-      - name: ECR
-        uses: ./.github/actions/docker-rolling-benchmark
-        with:
-          strategy: ecr-cache
-          benchmark_id: ${{ format('{0}{1}', matrix.benchmark_id, inputs.benchmark_id_suffix) }}
-          project_repo: n8n-io/n8n
-          dockerfile_path: ${{ matrix.dockerfile_path }}
-          docker_context: upstream
-          docker_build_args: |
-            --build-arg=NODE_VERSION=24.15.0
-            --build-arg=N8N_VERSION=snapshot
-            --build-arg=N8N_RELEASE_TYPE=dev
-          image_tag: ${{ matrix.image_tag }}
-          prepare_install_command: CI=true pnpm install --frozen-lockfile
-          prepare_command: CI=true N8N_SKIP_LICENSES=true pnpm build:n8n
-          prepare_node_version: "24.13.1"
-          benchmark_workspace: ${{ github.repository }}
-          ecr_region: ${{ vars.DOCKER_BENCHMARK_ECR_REGION || 'us-east-1' }}
-          ecr_role_arn: ${{ vars.DOCKER_BENCHMARK_ECR_ROLE_ARN }}
-          ecr_registry: ${{ vars.DOCKER_BENCHMARK_ECR_REGISTRY }}
-          ecr_repository: ${{ vars.DOCKER_BENCHMARK_ECR_REPOSITORY }}
-
   bc-n8n:
     name: BC OCI / n8n
     runs-on: ubuntu-latest
