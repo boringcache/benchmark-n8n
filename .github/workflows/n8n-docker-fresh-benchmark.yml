@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
     inputs:
       prewarm_buildkit_image:
-        description: "Optional experimental BuildKit image. When set, the fresh run adds BC BuildKit backend lanes."
+        description: "Optional managed BuildKit image override. Defaults to the stable managed channel."
         required: false
         type: string
         default: ""
@@ -105,7 +105,6 @@ jobs:
 
   boringcache-buildkit-backend:
     name: BC BuildKit Backend / ${{ matrix.label }}
-    if: ${{ inputs.prewarm_buildkit_image != '' || vars.N8N_PREWARM_BUILDKIT_IMAGE != '' }}
     strategy:
       fail-fast: false
       matrix:
@@ -140,7 +139,7 @@ jobs:
       prepare_command: CI=true N8N_SKIP_LICENSES=true pnpm build:n8n
       prepare_node_version: "24.13.1"
       cli_platform: linux-amd64
-      buildkit_image: ${{ inputs.prewarm_buildkit_image || vars.N8N_PREWARM_BUILDKIT_IMAGE }}
+      buildkit_image: ${{ inputs.prewarm_buildkit_image || vars.N8N_PREWARM_BUILDKIT_IMAGE || 'ghcr.io/boringcache/buildkit:v0.30.0-bc' }}
       buildkit_cache_backend: boringcache
       benchmark_workspace: ${{ github.repository }}
     secrets: inherit
