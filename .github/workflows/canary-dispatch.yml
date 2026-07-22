@@ -59,7 +59,7 @@ jobs:
           )
           if [[ "$IS_DOCKER" == "true" ]]; then
             args+=(
-              -f "prewarm_buildkit_image=${BUILDKIT_IMAGE}"
+              -f "buildkit_image=${BUILDKIT_IMAGE}"
               -f benchmark_id_suffix=-canary
             )
           fi
