@@ -1,25 +1,11 @@
 name: "n8n Docker Benchmark"
 run-name: >-
-  ${{ format('Benchmark {0} | {1}', github.event_name == 'pull_request' && 'Validation' || github.event_name == 'workflow_dispatch' && inputs.cli_version != '' && 'Canary' || (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.cache_lane == 'rolling')) && 'Rolling' || 'Fresh', github.event_name == 'push' && 'Upstream update' || github.event_name == 'schedule' && 'Weekly' || github.event_name == 'pull_request' && format('PR #{0}', github.event.pull_request.number) || format('Manual dispatch ({0})', github.ref_name)) }}
-
+  ${{ format('Benchmark {0} | {1}', github.event_name == 'pull_request' && 'Validation' || 'Rolling', github.event_name == 'push' && 'Upstream update' || github.event_name == 'pull_request' && format('PR #{0}', github.event.pull_request.number) || format('Manual dispatch ({0})', github.ref_name)) }}
 on:
   workflow_dispatch:
     inputs:
-      cache_lane:
-        description: "Benchmark lane"
-        required: false
-        type: choice
-        default: fresh
-        options:
-          - fresh
-          - rolling
       prewarm_buildkit_image:
         description: "Optional experimental BuildKit image for the BoringCache backend lane."
-        required: false
-        type: string
-        default: ""
-      cli_version:
-        description: "Optional BoringCache CLI release tag for canary runs, for example vcli-canary."
         required: false
         type: string
         default: ""
@@ -34,13 +20,12 @@ on:
     paths:
       - ".gitmodules"
       - "upstream"
-  schedule:
-    - cron: "30 3 * * 6"
   pull_request:
     paths:
       - ".gitmodules"
       - ".github/actions/docker-rolling-benchmark/**"
       - ".github/workflows/n8n-docker-benchmark.yml"
+      - ".github/workflows/n8n-docker-fresh-benchmark.yml"
       - ".github/workflows/reusable-docker-buildkit-benchmark.yml"
       - "README.md"
       - "scenarios/**"
@@ -59,7 +44,7 @@ permissions:
 jobs:
   gha-n8n:
     name: GHA / n8n
-    if: ${{ github.event_name == 'push' || github.event_name == 'pull_request' || (github.event_name == 'workflow_dispatch' && inputs.cache_lane == 'rolling') }}
+    if: ${{ github.event_name == 'push' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch' }}
     runs-on: ubuntu-latest
     timeout-minutes: 180
     env:
@@ -91,7 +76,7 @@ jobs:
 
   gha-runners:
     name: GHA / runners
-    if: ${{ github.event_name == 'push' || github.event_name == 'pull_request' || (github.event_name == 'workflow_dispatch' && inputs.cache_lane == 'rolling') }}
+    if: ${{ github.event_name == 'push' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch' }}
     runs-on: ubuntu-latest
     timeout-minutes: 180
     env:
@@ -123,7 +108,7 @@ jobs:
 
   gha-distroless:
     name: GHA / distroless
-    if: ${{ github.event_name == 'push' || github.event_name == 'pull_request' || (github.event_name == 'workflow_dispatch' && inputs.cache_lane == 'rolling') }}
+    if: ${{ github.event_name == 'push' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch' }}
     runs-on: ubuntu-latest
     timeout-minutes: 180
     env:
@@ -155,7 +140,7 @@ jobs:
 
   bc-n8n:
     name: BC OCI / n8n
-    if: ${{ github.event_name == 'push' || github.event_name == 'pull_request' || (github.event_name == 'workflow_dispatch' && inputs.cache_lane == 'rolling') }}
+    if: ${{ github.event_name == 'push' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch' }}
     runs-on: ubuntu-latest
     timeout-minutes: 180
     env:
@@ -188,11 +173,10 @@ jobs:
           prepare_command: CI=true N8N_SKIP_LICENSES=true pnpm build:n8n
           prepare_node_version: "24.13.1"
           cli_platform: linux-amd64
-          cli_version: ${{ inputs.cli_version }}
           benchmark_workspace: ${{ github.repository }}
   bc-runners:
     name: BC OCI / runners
-    if: ${{ github.event_name == 'push' || github.event_name == 'pull_request' || (github.event_name == 'workflow_dispatch' && inputs.cache_lane == 'rolling') }}
+    if: ${{ github.event_name == 'push' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch' }}
     runs-on: ubuntu-latest
     timeout-minutes: 180
     env:
@@ -225,11 +209,10 @@ jobs:
           prepare_command: CI=true N8N_SKIP_LICENSES=true pnpm build:n8n
           prepare_node_version: "24.13.1"
           cli_platform: linux-amd64
-          cli_version: ${{ inputs.cli_version }}
           benchmark_workspace: ${{ github.repository }}
   bc-distroless:
     name: BC OCI / distroless
-    if: ${{ github.event_name == 'push' || github.event_name == 'pull_request' || (github.event_name == 'workflow_dispatch' && inputs.cache_lane == 'rolling') }}
+    if: ${{ github.event_name == 'push' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch' }}
     runs-on: ubuntu-latest
     timeout-minutes: 180
     env:
@@ -262,7 +245,6 @@ jobs:
           prepare_command: CI=true N8N_SKIP_LICENSES=true pnpm build:n8n
           prepare_node_version: "24.13.1"
           cli_platform: linux-amd64
-          cli_version: ${{ inputs.cli_version }}
           benchmark_workspace: ${{ github.repository }}
 
   # No Docker +toolcache lanes here yet: Turbo runs in prepare_command before
@@ -270,7 +252,7 @@ jobs:
   # relabeled as toolcache unless a static in-Docker contract is added.
   boringcache-buildkit-backend:
     name: BC BuildKit Backend / ${{ matrix.label }}
-    if: ${{ github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.cache_lane == 'rolling') }}
+    if: ${{ github.event_name == 'push' || github.event_name == 'workflow_dispatch' }}
     runs-on: ubuntu-latest
     timeout-minutes: 180
     strategy:
@@ -321,129 +303,6 @@ jobs:
           prepare_command: CI=true N8N_SKIP_LICENSES=true pnpm build:n8n
           prepare_node_version: "24.13.1"
           cli_platform: linux-amd64
-          cli_version: ${{ inputs.cli_version }}
           benchmark_workspace: ${{ github.repository }}
           buildkit_image: ${{ inputs.prewarm_buildkit_image || vars.N8N_PREWARM_BUILDKIT_IMAGE || 'ghcr.io/boringcache/buildkit:v0.30.0-bc' }}
           buildkit_cache_backend: boringcache
-
-  fresh-github-actions-cache:
-    name: GHA / ${{ matrix.label }}
-    if: ${{ github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.cache_lane == 'fresh') }}
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - label: n8n
-            benchmark_id: n8n-docker
-            dockerfile_path: upstream/docker/images/n8n/Dockerfile
-            image_tag: n8n-benchmark:latest
-          - label: runners
-            benchmark_id: n8n-runners
-            dockerfile_path: upstream/docker/images/runners/Dockerfile
-            image_tag: n8n-runners-benchmark:latest
-          - label: distroless
-            benchmark_id: n8n-runners-distroless
-            dockerfile_path: upstream/docker/images/runners/Dockerfile.distroless
-            image_tag: n8n-runners-distroless-benchmark:latest
-    uses: ./.github/workflows/reusable-docker-buildkit-benchmark.yml
-    with:
-      strategy: actions-cache
-      cache_lane: fresh
-      benchmark_id: ${{ format('{0}{1}', matrix.benchmark_id, inputs.benchmark_id_suffix) }}
-      project_repo: n8n-io/n8n
-      dockerfile_path: ${{ matrix.dockerfile_path }}
-      docker_context: upstream
-      docker_build_args: |
-        --build-arg=NODE_VERSION=24.15.0
-        --build-arg=N8N_VERSION=snapshot
-        --build-arg=N8N_RELEASE_TYPE=dev
-      image_tag: ${{ matrix.image_tag }}
-      prepare_install_command: CI=true pnpm install --frozen-lockfile
-      prepare_command: CI=true N8N_SKIP_LICENSES=true pnpm build:n8n
-      prepare_node_version: "24.13.1"
-      benchmark_workspace: ${{ github.repository }}
-    secrets: inherit
-
-  fresh-boringcache-oci:
-    name: BC OCI / ${{ matrix.label }}
-    if: ${{ github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.cache_lane == 'fresh') }}
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - label: n8n
-            benchmark_id: n8n-docker
-            dockerfile_path: upstream/docker/images/n8n/Dockerfile
-            image_tag: n8n-benchmark:latest
-          - label: runners
-            benchmark_id: n8n-runners
-            dockerfile_path: upstream/docker/images/runners/Dockerfile
-            image_tag: n8n-runners-benchmark:latest
-          - label: distroless
-            benchmark_id: n8n-runners-distroless
-            dockerfile_path: upstream/docker/images/runners/Dockerfile.distroless
-            image_tag: n8n-runners-distroless-benchmark:latest
-    uses: ./.github/workflows/reusable-docker-buildkit-benchmark.yml
-    with:
-      strategy: boringcache
-      cache_lane: fresh
-      buildkit_backend: registry
-      benchmark_id: ${{ format('{0}{1}', matrix.benchmark_id, inputs.benchmark_id_suffix) }}
-      project_repo: n8n-io/n8n
-      dockerfile_path: ${{ matrix.dockerfile_path }}
-      docker_context: upstream
-      docker_build_args: |
-        --build-arg=NODE_VERSION=24.15.0
-        --build-arg=N8N_VERSION=snapshot
-        --build-arg=N8N_RELEASE_TYPE=dev
-      image_tag: ${{ matrix.image_tag }}
-      prepare_install_command: CI=true pnpm install --frozen-lockfile
-      prepare_command: CI=true N8N_SKIP_LICENSES=true pnpm build:n8n
-      prepare_node_version: "24.13.1"
-      cli_platform: linux-amd64
-      cli_version: ${{ inputs.cli_version }}
-      benchmark_workspace: ${{ github.repository }}
-    secrets: inherit
-
-  fresh-boringcache-buildkit-backend:
-    name: BC BuildKit Backend / ${{ matrix.label }}
-    if: ${{ github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.cache_lane == 'fresh') }}
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - label: n8n
-            benchmark_id: n8n-docker-bc-buildkit
-            dockerfile_path: upstream/docker/images/n8n/Dockerfile
-            image_tag: n8n-benchmark:latest
-          - label: runners
-            benchmark_id: n8n-runners-bc-buildkit
-            dockerfile_path: upstream/docker/images/runners/Dockerfile
-            image_tag: n8n-runners-benchmark:latest
-          - label: distroless
-            benchmark_id: n8n-runners-distroless-bc-buildkit
-            dockerfile_path: upstream/docker/images/runners/Dockerfile.distroless
-            image_tag: n8n-runners-distroless-benchmark:latest
-    uses: ./.github/workflows/reusable-docker-buildkit-benchmark.yml
-    with:
-      strategy: boringcache
-      cache_lane: fresh
-      buildkit_backend: registry
-      buildkit_cache_backend: boringcache
-      benchmark_id: ${{ format('{0}{1}', matrix.benchmark_id, inputs.benchmark_id_suffix) }}
-      project_repo: n8n-io/n8n
-      dockerfile_path: ${{ matrix.dockerfile_path }}
-      docker_context: upstream
-      docker_build_args: |
-        --build-arg=NODE_VERSION=24.15.0
-        --build-arg=N8N_VERSION=snapshot
-        --build-arg=N8N_RELEASE_TYPE=dev
-      image_tag: ${{ matrix.image_tag }}
-      prepare_install_command: CI=true pnpm install --frozen-lockfile
-      prepare_command: CI=true N8N_SKIP_LICENSES=true pnpm build:n8n
-      prepare_node_version: "24.13.1"
-      cli_platform: linux-amd64
-      cli_version: ${{ inputs.cli_version }}
-      buildkit_image: ${{ inputs.prewarm_buildkit_image || vars.N8N_PREWARM_BUILDKIT_IMAGE || 'ghcr.io/boringcache/buildkit:v0.30.0-bc' }}
-      benchmark_workspace: ${{ github.repository }}
-    secrets: inherit

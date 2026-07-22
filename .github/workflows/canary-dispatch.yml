@@ -28,10 +28,10 @@ jobs:
       matrix:
         include:
           - benchmark: Turbo
-            workflow: n8n-benchmark.yml
+            workflow: n8n-fresh-benchmark.yml
             docker: false
           - benchmark: Docker
-            workflow: n8n-docker-benchmark.yml
+            workflow: n8n-docker-fresh-benchmark.yml
             docker: true
     steps:
       - name: Dispatch isolated fresh benchmark
@@ -55,7 +55,6 @@ jobs:
           args=(
             --repo "$GITHUB_REPOSITORY"
             --ref "${{ github.ref_name }}"
-            -f cache_lane=fresh
             -f "cli_version=${CLI_VERSION}"
           )
           if [[ "$IS_DOCKER" == "true" ]]; then
