@@ -1,0 +1,57 @@
+name: "Canary Benchmark"
+run-name: ${{ format('Canary | CLI {0} | BuildKit {1}', inputs.cli_version, inputs.buildkit_image) }}
+
+on:
+  workflow_dispatch:
+    inputs:
+      cli_version:
+        description: "BoringCache CLI release tag to test."
+        required: true
+        type: string
+        default: vcli-canary
+      buildkit_image:
+        description: "BoringCache BuildKit image to test."
+        required: true
+        type: string
+        default: ghcr.io/boringcache/buildkit:canary
+
+permissions:
+  actions: write
+  contents: read
+
+jobs:
+  dispatch:
+    name: Run n8n canary (${{ matrix.benchmark }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - benchmark: Turbo
+            workflow: n8n-benchmark.yml
+            docker: false
+          - benchmark: Docker
+            workflow: n8n-docker-benchmark.yml
+            docker: true
+    steps:
+      - name: Dispatch isolated fresh benchmark
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CLI_VERSION: ${{ inputs.cli_version }}
+          BUILDKIT_IMAGE: ${{ inputs.buildkit_image }}
+          WORKFLOW: ${{ matrix.workflow }}
+          IS_DOCKER: ${{ matrix.docker }}
+        run: |
+          args=(
+            --repo "$GITHUB_REPOSITORY"
+            --ref "${{ github.ref_name }}"
+            -f cache_lane=fresh
+            -f "cli_version=${CLI_VERSION}"
+          )
+          if [[ "$IS_DOCKER" == "true" ]]; then
+            args+=(
+              -f "prewarm_buildkit_image=${BUILDKIT_IMAGE}"
+              -f benchmark_id_suffix=-canary
+            )
+          fi
+          gh workflow run "$WORKFLOW" "${args[@]}"
