@@ -1,14 +1,14 @@
 name: "Canary Benchmark"
-run-name: ${{ format('Canary | CLI {0} | BuildKit {1}', inputs.cli_version, inputs.buildkit_image) }}
+run-name: ${{ format('Canary | CLI {0} | BuildKit {1}', inputs.cli_version || 'latest immutable', inputs.buildkit_image) }}
 
 on:
   workflow_dispatch:
     inputs:
       cli_version:
-        description: "BoringCache CLI release tag to test."
-        required: true
+        description: "Exact BoringCache CLI release tag. Empty selects the newest immutable CLI canary."
+        required: false
         type: string
-        default: vcli-canary
+        default: ""
       buildkit_image:
         description: "BoringCache BuildKit image to test."
         required: true
@@ -42,6 +42,16 @@ jobs:
           WORKFLOW: ${{ matrix.workflow }}
           IS_DOCKER: ${{ matrix.docker }}
         run: |
+          set -euo pipefail
+
+          if [[ -z "$CLI_VERSION" ]]; then
+            CLI_VERSION="$(gh release list --repo boringcache/cli --limit 100 --json tagName,publishedAt --jq '[.[] | select(.tagName | startswith("vcli-canary-"))] | sort_by(.publishedAt) | reverse | .[0].tagName')"
+          fi
+          if [[ -z "$CLI_VERSION" || "$CLI_VERSION" == "null" ]]; then
+            echo "::error::No immutable BoringCache CLI canary release was found."
+            exit 1
+          fi
+
           args=(
             --repo "$GITHUB_REPOSITORY"
             --ref "${{ github.ref_name }}"
@@ -54,4 +64,7 @@ jobs:
               -f benchmark_id_suffix=-canary
             )
           fi
-          gh workflow run "$WORKFLOW" "${args[@]}"
+          RUN_URL="$(gh workflow run "$WORKFLOW" "${args[@]}")"
+          RUN_ID="${RUN_URL##*/}"
+          echo "Canary benchmark: ${RUN_URL}"
+          gh run watch "$RUN_ID" --repo "$GITHUB_REPOSITORY" --exit-status
