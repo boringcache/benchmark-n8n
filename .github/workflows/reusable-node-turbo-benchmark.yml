@@ -167,6 +167,7 @@ jobs:
           working-directory: ./upstream
           cache-profiles: benchmark
           allow-external-symlinks: 'true'
+          save-on-pull-request: 'true'
           verbose: true
         env:
           PNPM_STORE_DIR: ${{ steps.pnpm_store.outputs.dir }}
