@@ -451,6 +451,7 @@ jobs:
           read-only: true
           cache-profiles: benchmark
           allow-external-symlinks: 'true'
+          save-on-pull-request: 'true'
           fail-on-cache-miss: true
           verbose: true
         env:
