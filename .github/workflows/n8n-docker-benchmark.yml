@@ -4,8 +4,13 @@ run-name: >-
 on:
   workflow_dispatch:
     inputs:
-      prewarm_buildkit_image:
-        description: "Optional experimental BuildKit image for the BoringCache backend lane."
+      buildkit_image:
+        description: "Optional managed BoringCache BuildKit image."
+        required: false
+        type: string
+        default: ""
+      cli_version:
+        description: "Optional BoringCache CLI release tag for canary runs, for example vcli-canary."
         required: false
         type: string
         default: ""
@@ -138,120 +143,8 @@ jobs:
           prepare_node_version: "24.13.1"
           benchmark_workspace: ${{ github.repository }}
 
-  bc-n8n:
-    name: BC OCI / n8n
-    if: ${{ github.event_name == 'push' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch' }}
-    runs-on: ubuntu-latest
-    timeout-minutes: 180
-    env:
-      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      BORINGCACHE_RESTORE_TOKEN: ${{ secrets.BORINGCACHE_RESTORE_TOKEN }}
-      BORINGCACHE_SAVE_TOKEN: ${{ secrets.BORINGCACHE_SAVE_TOKEN }}
-      BORINGCACHE_API_TOKEN: ${{ secrets.BORINGCACHE_API_TOKEN || secrets.BORINGCACHE_RESTORE_TOKEN }}
-    steps:
-      - name: Checkout benchmark repo
-        uses: actions/checkout@v6
-        with:
-          fetch-depth: 1
-          submodules: false
-
-      - name: BC OCI
-        uses: ./.github/actions/docker-rolling-benchmark
-        with:
-          strategy: boringcache
-          buildkit_backend: registry
-          benchmark_id: n8n-docker${{ inputs.benchmark_id_suffix }}
-          project_repo: n8n-io/n8n
-          dockerfile_path: upstream/docker/images/n8n/Dockerfile
-          docker_context: upstream
-          docker_build_args: |
-            --build-arg=NODE_VERSION=24.15.0
-            --build-arg=N8N_VERSION=snapshot
-            --build-arg=N8N_RELEASE_TYPE=dev
-          image_tag: n8n-benchmark:latest
-          prepare_install_command: CI=true pnpm install --frozen-lockfile
-          prepare_command: CI=true N8N_SKIP_LICENSES=true pnpm build:n8n
-          prepare_node_version: "24.13.1"
-          cli_platform: linux-amd64
-          benchmark_workspace: ${{ github.repository }}
-  bc-runners:
-    name: BC OCI / runners
-    if: ${{ github.event_name == 'push' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch' }}
-    runs-on: ubuntu-latest
-    timeout-minutes: 180
-    env:
-      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      BORINGCACHE_RESTORE_TOKEN: ${{ secrets.BORINGCACHE_RESTORE_TOKEN }}
-      BORINGCACHE_SAVE_TOKEN: ${{ secrets.BORINGCACHE_SAVE_TOKEN }}
-      BORINGCACHE_API_TOKEN: ${{ secrets.BORINGCACHE_API_TOKEN || secrets.BORINGCACHE_RESTORE_TOKEN }}
-    steps:
-      - name: Checkout benchmark repo
-        uses: actions/checkout@v6
-        with:
-          fetch-depth: 1
-          submodules: false
-
-      - name: BC OCI
-        uses: ./.github/actions/docker-rolling-benchmark
-        with:
-          strategy: boringcache
-          buildkit_backend: registry
-          benchmark_id: n8n-runners${{ inputs.benchmark_id_suffix }}
-          project_repo: n8n-io/n8n
-          dockerfile_path: upstream/docker/images/runners/Dockerfile
-          docker_context: upstream
-          docker_build_args: |
-            --build-arg=NODE_VERSION=24.15.0
-            --build-arg=N8N_VERSION=snapshot
-            --build-arg=N8N_RELEASE_TYPE=dev
-          image_tag: n8n-runners-benchmark:latest
-          prepare_install_command: CI=true pnpm install --frozen-lockfile
-          prepare_command: CI=true N8N_SKIP_LICENSES=true pnpm build:n8n
-          prepare_node_version: "24.13.1"
-          cli_platform: linux-amd64
-          benchmark_workspace: ${{ github.repository }}
-  bc-distroless:
-    name: BC OCI / distroless
-    if: ${{ github.event_name == 'push' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch' }}
-    runs-on: ubuntu-latest
-    timeout-minutes: 180
-    env:
-      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      BORINGCACHE_RESTORE_TOKEN: ${{ secrets.BORINGCACHE_RESTORE_TOKEN }}
-      BORINGCACHE_SAVE_TOKEN: ${{ secrets.BORINGCACHE_SAVE_TOKEN }}
-      BORINGCACHE_API_TOKEN: ${{ secrets.BORINGCACHE_API_TOKEN || secrets.BORINGCACHE_RESTORE_TOKEN }}
-    steps:
-      - name: Checkout benchmark repo
-        uses: actions/checkout@v6
-        with:
-          fetch-depth: 1
-          submodules: false
-
-      - name: BC OCI
-        uses: ./.github/actions/docker-rolling-benchmark
-        with:
-          strategy: boringcache
-          buildkit_backend: registry
-          benchmark_id: n8n-runners-distroless${{ inputs.benchmark_id_suffix }}
-          project_repo: n8n-io/n8n
-          dockerfile_path: upstream/docker/images/runners/Dockerfile.distroless
-          docker_context: upstream
-          docker_build_args: |
-            --build-arg=NODE_VERSION=24.15.0
-            --build-arg=N8N_VERSION=snapshot
-            --build-arg=N8N_RELEASE_TYPE=dev
-          image_tag: n8n-runners-distroless-benchmark:latest
-          prepare_install_command: CI=true pnpm install --frozen-lockfile
-          prepare_command: CI=true N8N_SKIP_LICENSES=true pnpm build:n8n
-          prepare_node_version: "24.13.1"
-          cli_platform: linux-amd64
-          benchmark_workspace: ${{ github.repository }}
-
-  # No Docker +toolcache lanes here yet: Turbo runs in prepare_command before
-  # the measured Docker build. The Docker image build itself should not be
-  # relabeled as toolcache unless a static in-Docker contract is added.
-  boringcache-buildkit-backend:
-    name: BC BuildKit Backend / ${{ matrix.label }}
+  boringcache:
+    name: BoringCache / ${{ matrix.label }}
     if: ${{ github.event_name == 'push' || github.event_name == 'workflow_dispatch' }}
     runs-on: ubuntu-latest
     timeout-minutes: 180
@@ -260,15 +153,15 @@ jobs:
       matrix:
         include:
           - label: n8n
-            benchmark_id: n8n-docker-bc-buildkit
+            benchmark_id: n8n-docker
             dockerfile_path: upstream/docker/images/n8n/Dockerfile
             image_tag: n8n-benchmark:latest
           - label: runners
-            benchmark_id: n8n-runners-bc-buildkit
+            benchmark_id: n8n-runners
             dockerfile_path: upstream/docker/images/runners/Dockerfile
             image_tag: n8n-runners-benchmark:latest
           - label: distroless
-            benchmark_id: n8n-runners-distroless-bc-buildkit
+            benchmark_id: n8n-runners-distroless
             dockerfile_path: upstream/docker/images/runners/Dockerfile.distroless
             image_tag: n8n-runners-distroless-benchmark:latest
     env:
@@ -285,11 +178,10 @@ jobs:
           fetch-depth: 1
           submodules: false
 
-      - name: BC BuildKit Backend
+      - name: BoringCache
         uses: ./.github/actions/docker-rolling-benchmark
         with:
           strategy: boringcache
-          buildkit_backend: registry
           benchmark_id: ${{ format('{0}{1}', matrix.benchmark_id, inputs.benchmark_id_suffix) }}
           project_repo: n8n-io/n8n
           dockerfile_path: ${{ matrix.dockerfile_path }}
@@ -304,5 +196,4 @@ jobs:
           prepare_node_version: "24.13.1"
           cli_platform: linux-amd64
           benchmark_workspace: ${{ github.repository }}
-          buildkit_image: ${{ inputs.prewarm_buildkit_image || vars.N8N_PREWARM_BUILDKIT_IMAGE || 'ghcr.io/boringcache/buildkit:v0.30.0-bc' }}
-          buildkit_cache_backend: boringcache
+          buildkit_image: ${{ inputs.buildkit_image || 'ghcr.io/boringcache/buildkit:v0.30.0-bc' }}
