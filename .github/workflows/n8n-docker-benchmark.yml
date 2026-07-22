@@ -188,7 +188,7 @@ jobs:
           prepare_command: CI=true N8N_SKIP_LICENSES=true pnpm build:n8n
           prepare_node_version: "24.13.1"
           cli_platform: linux-amd64
-          cli_version: ${{ inputs.cli_version || vars.BORINGCACHE_BENCHMARK_CLI_VERSION || 'v1.13.93' }}
+          cli_version: ${{ inputs.cli_version }}
           benchmark_workspace: ${{ github.repository }}
   bc-runners:
     name: BC OCI / runners
@@ -225,7 +225,7 @@ jobs:
           prepare_command: CI=true N8N_SKIP_LICENSES=true pnpm build:n8n
           prepare_node_version: "24.13.1"
           cli_platform: linux-amd64
-          cli_version: ${{ inputs.cli_version || vars.BORINGCACHE_BENCHMARK_CLI_VERSION || 'v1.13.93' }}
+          cli_version: ${{ inputs.cli_version }}
           benchmark_workspace: ${{ github.repository }}
   bc-distroless:
     name: BC OCI / distroless
@@ -262,7 +262,7 @@ jobs:
           prepare_command: CI=true N8N_SKIP_LICENSES=true pnpm build:n8n
           prepare_node_version: "24.13.1"
           cli_platform: linux-amd64
-          cli_version: ${{ inputs.cli_version || vars.BORINGCACHE_BENCHMARK_CLI_VERSION || 'v1.13.93' }}
+          cli_version: ${{ inputs.cli_version }}
           benchmark_workspace: ${{ github.repository }}
 
   # No Docker +toolcache lanes here yet: Turbo runs in prepare_command before
@@ -321,7 +321,7 @@ jobs:
           prepare_command: CI=true N8N_SKIP_LICENSES=true pnpm build:n8n
           prepare_node_version: "24.13.1"
           cli_platform: linux-amd64
-          cli_version: ${{ inputs.cli_version || vars.BORINGCACHE_BENCHMARK_CLI_VERSION || 'v1.13.93' }}
+          cli_version: ${{ inputs.cli_version }}
           benchmark_workspace: ${{ github.repository }}
           buildkit_image: ${{ inputs.prewarm_buildkit_image || vars.N8N_PREWARM_BUILDKIT_IMAGE || 'ghcr.io/boringcache/buildkit:v0.30.0-bc' }}
           buildkit_cache_backend: boringcache
@@ -401,7 +401,7 @@ jobs:
       prepare_command: CI=true N8N_SKIP_LICENSES=true pnpm build:n8n
       prepare_node_version: "24.13.1"
       cli_platform: linux-amd64
-      cli_version: ${{ inputs.cli_version || vars.BORINGCACHE_BENCHMARK_CLI_VERSION || 'v1.13.93' }}
+      cli_version: ${{ inputs.cli_version }}
       benchmark_workspace: ${{ github.repository }}
     secrets: inherit
 
@@ -443,7 +443,7 @@ jobs:
       prepare_command: CI=true N8N_SKIP_LICENSES=true pnpm build:n8n
       prepare_node_version: "24.13.1"
       cli_platform: linux-amd64
-      cli_version: ${{ inputs.cli_version || vars.BORINGCACHE_BENCHMARK_CLI_VERSION || 'v1.13.93' }}
+      cli_version: ${{ inputs.cli_version }}
       buildkit_image: ${{ inputs.prewarm_buildkit_image || vars.N8N_PREWARM_BUILDKIT_IMAGE || 'ghcr.io/boringcache/buildkit:v0.30.0-bc' }}
       benchmark_workspace: ${{ github.repository }}
     secrets: inherit

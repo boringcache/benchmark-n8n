@@ -62,7 +62,7 @@ jobs:
       project_repo: n8n-io/n8n
       strategy: boringcache
       cache_lane: ${{ github.event_name == 'push' && 'rolling' || github.event_name == 'workflow_dispatch' && inputs.cache_lane || 'fresh' }}
-      cli_version: ${{ inputs.cli_version || vars.BORINGCACHE_BENCHMARK_CLI_VERSION || 'v1.13.93' }}
+      cli_version: ${{ inputs.cli_version }}
       node_version: "24.13.1"
       install_command: CI=1 pnpm install --frozen-lockfile
       build_command: CI=1 pnpm turbo run build --summarize
