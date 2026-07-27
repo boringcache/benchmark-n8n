@@ -47,6 +47,16 @@ on:
         required: false
         type: string
         default: ''
+      reuse_prepared_context_for_warm:
+        description: 'Reuse the exact prepared Docker context for the warm build. The local BuildKit state is still pruned.'
+        required: false
+        type: boolean
+        default: false
+      require_warm_cached_steps:
+        description: 'Fail the fresh proof unless the warm BuildKit build reports at least one cached step.'
+        required: false
+        type: boolean
+        default: false
       cli_platform:
         required: false
         type: string
@@ -431,18 +441,18 @@ jobs:
           if-no-files-found: ignore
 
       - name: Prepare warm source tree
-        if: inputs.cache_lane != 'rolling'
+        if: inputs.cache_lane != 'rolling' && !inputs.reuse_prepared_context_for_warm
         run: ./scripts/prepare-source.sh warm1
 
       - name: Install warm Docker build artifact dependencies
-        if: inputs.cache_lane != 'rolling' && inputs.prepare_install_command != ''
+        if: inputs.cache_lane != 'rolling' && !inputs.reuse_prepared_context_for_warm && inputs.prepare_install_command != ''
         run: |
           set -euo pipefail
           cd upstream
           eval "$PREPARE_INSTALL_COMMAND"
 
       - name: Prepare warm Docker build artifacts
-        if: inputs.cache_lane != 'rolling' && inputs.prepare_command != ''
+        if: inputs.cache_lane != 'rolling' && !inputs.reuse_prepared_context_for_warm && inputs.prepare_command != ''
         run: |
           set -euo pipefail
           cd upstream
@@ -490,8 +500,10 @@ jobs:
           DOCKERFILE_PATH: ${{ inputs.dockerfile_path }}
           BENCHMARK_DOCKER_CONTEXT: ${{ inputs.docker_context }}
           DOCKER_BUILD_EXTRA_ARGS: ${{ inputs.docker_build_args }}
+          REQUIRE_WARM_CACHED_STEPS: ${{ inputs.require_warm_cached_steps }}
         run: |
           set -euo pipefail
+          warm_cached_steps=""
           docker_extra_args=()
           if [[ -n "${DOCKER_BUILD_EXTRA_ARGS:-}" ]]; then
             while IFS= read -r arg; do
@@ -520,6 +532,7 @@ jobs:
             echo "build_seconds=$((end - start))" >> "$GITHUB_OUTPUT"
             if [[ -s "$metrics_file" ]]; then
               cat "$metrics_file" >> "$GITHUB_OUTPUT"
+              warm_cached_steps="$(sed -n 's/^buildkit_cached_steps=//p' "$metrics_file" | tail -n1)"
             fi
           else
             build_log="$(mktemp /tmp/${BENCHMARK_ID}-ac-warm.XXXXXX.log)"
@@ -573,6 +586,14 @@ jobs:
             fi
             cached_steps="$(grep -Ec '^#[0-9]+ CACHED$' "$build_log" || true)"
             echo "buildkit_cached_steps=${cached_steps}" >> "$GITHUB_OUTPUT"
+            warm_cached_steps="$cached_steps"
+          fi
+
+          if [[ "$REQUIRE_WARM_CACHED_STEPS" == "true" ]]; then
+            if [[ ! "$warm_cached_steps" =~ ^[0-9]+$ ]] || (( warm_cached_steps < 1 )); then
+              echo "Warm Docker build reported zero cached BuildKit steps" >&2
+              exit 1
+            fi
           fi
 
       - name: Capture scenario timing
