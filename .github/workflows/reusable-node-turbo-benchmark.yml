@@ -155,14 +155,14 @@ jobs:
       - name: Configure boringcache/one
         if: inputs.strategy == 'boringcache'
         id: boringcache_one
-        uses: boringcache/one@9721d419d2c78c0780963d297eb3f81f24641a27
+        uses: boringcache/one@60da4941a040b38dff055fcce84c7fda49bd4c57 # v1 / 1.13.108
         with:
+          trust-policy: publish
           setup: none
           cli-version: ${{ inputs.cli_version }}
           mode: turbo
           working-directory: ./upstream
           cache-profiles: benchmark
-          save-on-pull-request: 'true'
           fail-on-cache-error: ${{ inputs.cache_lane == 'fresh' }}
           verbose: true
         env:
@@ -434,15 +434,14 @@ jobs:
 
       - name: Configure boringcache/one
         if: inputs.strategy == 'boringcache'
-        uses: boringcache/one@9721d419d2c78c0780963d297eb3f81f24641a27
+        uses: boringcache/one@60da4941a040b38dff055fcce84c7fda49bd4c57 # v1 / 1.13.108
         with:
+          trust-policy: restore
           setup: none
           cli-version: ${{ inputs.cli_version }}
           mode: turbo
           working-directory: ./upstream
-          read-only: true
           cache-profiles: benchmark
-          save-on-pull-request: 'true'
           fail-on-cache-miss: true
           verbose: true
         env:
@@ -617,7 +616,7 @@ jobs:
             --cache-storage-source "${{ inputs.strategy == 'boringcache' && 'boringcache-check' || 'github-actions-cache-api' }}" \
             --storage-breakdown-json "${{ inputs.strategy == 'boringcache' && steps.bc_cache_size.outputs.breakdown_path || '' }}" \
             --cache-import-status "${{ needs.seed-cache.outputs.cache_import_status }}" \
-            --hit-behavior-note "${{ inputs.cache_lane == 'rolling' && 'Rolling lane: this run builds the current upstream commit as-is with the prior rolling cache available, exports the updated cache, and records that commit build only; warm follow-up runs are intentionally skipped.' || (inputs.strategy == 'boringcache' && 'Fresh lane: the cold build uses boringcache/one in mode=turbo with after the host workflow sets up Node.js; the committed repo plan selects the Turbo remote cache and archives only the pnpm store via the benchmark profile in .boringcache.toml. Warm restores the pnpm store on a fresh runner and rebuilds the same pinned source tree against the Turbo remote cache populated by the cold build in read-only mode.' || 'Fresh lane: the cold build runs from scratch and saves the pnpm store plus local .turbo cache to actions/cache under a run-scoped key while recording cold timing. Warm restores that same local cache key on a fresh runner and rebuilds the same pinned source tree without synthetic mutations.') }}" \
+            --hit-behavior-note "${{ inputs.cache_lane == 'rolling' && 'Rolling lane: this run builds the current upstream commit as-is with the prior rolling cache available, exports the updated cache, and records that commit build only; warm follow-up runs are intentionally skipped.' || (inputs.strategy == 'boringcache' && 'Fresh lane: the cold build uses boringcache/one in mode=turbo after the host workflow sets up Node.js; the committed repo plan selects the Turbo remote cache and saves only the pnpm store through deterministic tar transport. Warm restores that archive on a fresh runner and rebuilds the same pinned source tree against the Turbo remote cache populated by the cold build under trust-policy restore.' || 'Fresh lane: the cold build runs from scratch and saves the pnpm store plus local .turbo cache to actions/cache under a run-scoped key while recording cold timing. Warm restores that same local cache key on a fresh runner and rebuilds the same pinned source tree without synthetic mutations.') }}" \
             "${cache_summary_args[@]}"
 
       - name: Upload benchmark artifacts
