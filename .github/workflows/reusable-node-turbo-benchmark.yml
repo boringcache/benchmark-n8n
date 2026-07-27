@@ -155,7 +155,7 @@ jobs:
       - name: Configure boringcache/one
         if: inputs.strategy == 'boringcache'
         id: boringcache_one
-        uses: boringcache/one@60da4941a040b38dff055fcce84c7fda49bd4c57 # v1 / 1.13.108
+        uses: boringcache/one@6b7033721b37075b2138fd0c769bf088e0836ce6 # v1.14.0
         with:
           trust-policy: publish
           setup: none
@@ -434,7 +434,7 @@ jobs:
 
       - name: Configure boringcache/one
         if: inputs.strategy == 'boringcache'
-        uses: boringcache/one@60da4941a040b38dff055fcce84c7fda49bd4c57 # v1 / 1.13.108
+        uses: boringcache/one@6b7033721b37075b2138fd0c769bf088e0836ce6 # v1.14.0
         with:
           trust-policy: restore
           setup: none
