@@ -67,6 +67,8 @@ jobs:
       prepare_install_command: CI=true pnpm install --frozen-lockfile
       prepare_command: CI=true N8N_SKIP_LICENSES=true pnpm build:n8n
       prepare_node_version: "24.13.1"
+      reuse_prepared_context_for_warm: true
+      require_warm_cached_steps: true
       benchmark_workspace: ${{ github.repository }}
     secrets: inherit
 
@@ -104,6 +106,8 @@ jobs:
       prepare_install_command: CI=true pnpm install --frozen-lockfile
       prepare_command: CI=true N8N_SKIP_LICENSES=true pnpm build:n8n
       prepare_node_version: "24.13.1"
+      reuse_prepared_context_for_warm: true
+      require_warm_cached_steps: true
       cli_platform: linux-amd64
       buildkit_image: ${{ inputs.buildkit_image || 'ghcr.io/boringcache/buildkit:v0.30.0-bc' }}
       benchmark_workspace: ${{ github.repository }}

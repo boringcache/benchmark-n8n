@@ -10,10 +10,10 @@ workspace = "boringcache/benchmark-n8n"
 tag = "n8n-docker"
 
 [adapters.turbo]
-tag = "n8n-turbo"
+tag = "n8n-turbo-local"
 
 [entries.pnpm]
-tag = "pnpm-store"
+tag = "n8n-pnpm-store-local"
 path_env = "PNPM_STORE_DIR"
 
 [profiles.benchmark]
