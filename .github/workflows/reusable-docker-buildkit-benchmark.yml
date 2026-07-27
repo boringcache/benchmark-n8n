@@ -52,7 +52,7 @@ on:
         type: string
         default: linux-amd64
       cli_version:
-        description: "Optional BoringCache CLI release tag for canary runs."
+        description: "Optional BoringCache CLI release tag. Empty selects reviewed v1.13.106; canary runs may pass vcli-canary."
         required: false
         type: string
         default: ""
@@ -133,22 +133,15 @@ jobs:
           username: ${{ vars.BORINGCACHE_GHCR_READ_USER || github.actor }}
           password: ${{ secrets.BORINGCACHE_GHCR_READ_TOKEN || github.token }}
 
-      - name: Install BoringCache CLI with boringcache/one
-        if: inputs.strategy == 'boringcache'
-        uses: boringcache/one@v1
-        with:
-          setup: none
-          cli-version: ${{ inputs.cli_version }}
-          mode: archive
-          workspace: ${{ env.BENCHMARK_WORKSPACE }}
-          cli-platform: ${{ inputs.cli_platform }}
-          cache-runtime: false
-
       - name: Checkout benchmark repo
         uses: actions/checkout@v6
         with:
           fetch-depth: 1
           submodules: false
+
+      - name: Install exact BoringCache CLI
+        if: inputs.strategy == 'boringcache'
+        run: ./scripts/install-boringcache-cli.sh "${{ inputs.cli_version }}" "${{ inputs.cli_platform }}"
 
       - name: Checkout pinned upstream submodule shallowly
         run: |
@@ -670,16 +663,9 @@ jobs:
           fetch-depth: 1
           path: .benchmark-config
 
-      - name: Install BoringCache CLI with boringcache/one
+      - name: Install exact BoringCache CLI
         if: inputs.strategy == 'boringcache'
-        uses: boringcache/one@v1
-        with:
-          setup: none
-          cli-version: ${{ inputs.cli_version }}
-          mode: archive
-          workspace: ${{ env.BENCHMARK_WORKSPACE }}
-          cli-platform: ${{ inputs.cli_platform }}
-          cache-runtime: false
+        run: ./.benchmark-config/scripts/install-boringcache-cli.sh "${{ inputs.cli_version }}" "${{ inputs.cli_platform }}"
 
       - name: Collect scenario timings
         if: ${{ inputs.cache_lane != 'rolling' }}
@@ -727,7 +713,7 @@ jobs:
         if: inputs.strategy == 'boringcache'
         id: bc_cache_size
         env:
-          BORINGCACHE_RESTORE_TOKEN: ${{ secrets.BORINGCACHE_RESTORE_TOKEN || secrets.BORINGCACHE_API_TOKEN }}
+          BORINGCACHE_RESTORE_TOKEN: ${{ secrets.BORINGCACHE_RESTORE_TOKEN }}
         run: |
           tags_csv="${{ steps.scope.outputs.tags_csv }}"
           mkdir -p benchmark-storage
@@ -926,7 +912,7 @@ jobs:
       - name: Write benchmark artifacts
         id: artifact_files
         env:
-          BORINGCACHE_API_TOKEN: ${{ secrets.BORINGCACHE_API_TOKEN || secrets.BORINGCACHE_RESTORE_TOKEN }}
+          BORINGCACHE_RESTORE_TOKEN: ${{ secrets.BORINGCACHE_RESTORE_TOKEN }}
         run: |
           cache_summary_args=()
           if [[ -s benchmark-session-summary/benchmark-session-summary.json ]]; then

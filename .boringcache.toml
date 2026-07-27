@@ -1,15 +1,16 @@
 workspace = "boringcache/benchmark-n8n"
 
-# Turbo remote-cache benchmark. boringcache/one mode=turbo-proxy owns the
+# Turbo remote-cache benchmark. boringcache/one mode=turbo owns the
 # task-output cache, so the benchmark profile archives only the pnpm store
-# that the remote adapter does not cover. The action's `cache-tag` input
-# prefixes the entry tag at resolution.
+# that the remote adapter does not cover.
 #
-# pnpm store entries point back to upstream/ via workspace-back symlinks
-# (.pnpm-store/v10/projects/HASH/ -> ../../../upstream). CLI 1.12.55+
-# rejects those by default; boringcache/one@v1 v1.12.75+ exposes the
-# `allow-external-symlinks: true` opt-in, which the workflow sets on
-# both BoringCache action calls.
+# Profile entries use the Action's deterministic tar transport, which preserves
+# pnpm's workspace-back symlinks without a workflow or repo-plan escape hatch.
+
+[adapters.turbo]
+tag = "n8n-turbo"
+no-platform = true
+no-git = true
 
 [entries.pnpm]
 tag = "pnpm-store"
