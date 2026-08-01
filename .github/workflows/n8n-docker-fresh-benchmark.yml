@@ -109,6 +109,6 @@ jobs:
       reuse_prepared_context_for_warm: true
       require_warm_cached_steps: true
       cli_platform: linux-amd64
-      buildkit_image: ${{ inputs.buildkit_image || 'ghcr.io/boringcache/buildkit:v0.30.0-bc' }}
+      buildkit_image: ${{ inputs.buildkit_image }}
       benchmark_workspace: ${{ github.repository }}
     secrets: inherit

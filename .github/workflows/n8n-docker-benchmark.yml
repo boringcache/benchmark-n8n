@@ -195,4 +195,4 @@ jobs:
           prepare_node_version: "24.13.1"
           cli_platform: linux-amd64
           benchmark_workspace: ${{ github.repository }}
-          buildkit_image: ${{ inputs.buildkit_image || 'ghcr.io/boringcache/buildkit:v0.30.0-bc' }}
+          buildkit_image: ${{ inputs.buildkit_image }}
