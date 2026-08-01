@@ -3,7 +3,7 @@
 Public n8n benchmark runner for BoringCache vs GitHub Actions cache.
 
 Stable BoringCache workflows pin both `boringcache/one` and the direct Docker
-CLI install to `v1.15.0`; canaries must use exact immutable tags.
+CLI install to `v1.16.3`; canaries must use exact immutable tags.
 
 This repo exists separately from [`boringcache/benchmarks`](https://github.com/boringcache/benchmarks) so the benchmark keeps:
 
