@@ -3,7 +3,7 @@
 Public n8n benchmark runner for BoringCache vs GitHub Actions cache.
 
 Stable BoringCache workflows pin both `boringcache/one` and the direct Docker
-CLI install to `v1.16.3`; canaries must use exact immutable tags.
+CLI install to `v1.16.4`; canaries must use exact immutable tags.
 
 This repo exists separately from [`boringcache/benchmarks`](https://github.com/boringcache/benchmarks) so the benchmark keeps:
 
@@ -34,7 +34,7 @@ The benchmark has two tool-specific surfaces:
 - `n8n`: Turbo build for the pnpm monorepo.
 - `n8n-docker`, `n8n-runners`, and `n8n-runners-distroless`: BuildKit builds for the three Docker images n8n publishes. These lanes prepare the n8n build artifacts before the measured Docker build, so the timed section isolates Docker layer/cache behavior rather than rerunning the Turbo benchmark inside the Docker lane.
 
-Scheduled, PR, and rolling-dispatch Docker runs use [`.github/workflows/n8n-docker-benchmark.yml`](.github/workflows/n8n-docker-benchmark.yml), which compares GitHub Actions Cache with BoringCache managed BuildKit for all three images. Docker `+ toolcache` lanes are intentionally absent from this Docker workflow because Turbo runs before the measured Docker build; the separate n8n Turbo workflow owns tool-cache behavior.
+PR, manual, and upstream-sync Docker runs use [`.github/workflows/n8n-docker-benchmark.yml`](.github/workflows/n8n-docker-benchmark.yml), which compares GitHub Actions Cache with BoringCache managed BuildKit for all three images. The separate fresh workflow owns the scheduled clean cohort. Docker `+ toolcache` lanes are intentionally absent from this Docker workflow because Turbo runs before the measured Docker build; the separate n8n Turbo workflow owns tool-cache behavior.
 
 The story this benchmark is meant to show is:
 
