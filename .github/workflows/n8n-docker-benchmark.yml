@@ -70,7 +70,6 @@ jobs:
           dockerfile_path: upstream/docker/images/n8n/Dockerfile
           docker_context: upstream
           docker_build_args: |
-            --build-arg=NODE_VERSION=24.15.0
             --build-arg=N8N_VERSION=snapshot
             --build-arg=N8N_RELEASE_TYPE=dev
           image_tag: n8n-benchmark:latest
@@ -102,7 +101,6 @@ jobs:
           dockerfile_path: upstream/docker/images/runners/Dockerfile
           docker_context: upstream
           docker_build_args: |
-            --build-arg=NODE_VERSION=24.15.0
             --build-arg=N8N_VERSION=snapshot
             --build-arg=N8N_RELEASE_TYPE=dev
           image_tag: n8n-runners-benchmark:latest
@@ -134,7 +132,6 @@ jobs:
           dockerfile_path: upstream/docker/images/runners/Dockerfile.distroless
           docker_context: upstream
           docker_build_args: |
-            --build-arg=NODE_VERSION=24.15.0
             --build-arg=N8N_VERSION=snapshot
             --build-arg=N8N_RELEASE_TYPE=dev
           image_tag: n8n-runners-distroless-benchmark:latest
@@ -186,7 +183,6 @@ jobs:
           dockerfile_path: ${{ matrix.dockerfile_path }}
           docker_context: upstream
           docker_build_args: |
-            --build-arg=NODE_VERSION=24.15.0
             --build-arg=N8N_VERSION=snapshot
             --build-arg=N8N_RELEASE_TYPE=dev
           image_tag: ${{ matrix.image_tag }}

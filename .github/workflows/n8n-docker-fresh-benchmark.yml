@@ -60,7 +60,6 @@ jobs:
       dockerfile_path: ${{ matrix.dockerfile_path }}
       docker_context: upstream
       docker_build_args: |
-        --build-arg=NODE_VERSION=24.15.0
         --build-arg=N8N_VERSION=snapshot
         --build-arg=N8N_RELEASE_TYPE=dev
       image_tag: ${{ matrix.image_tag }}
@@ -99,7 +98,6 @@ jobs:
       dockerfile_path: ${{ matrix.dockerfile_path }}
       docker_context: upstream
       docker_build_args: |
-        --build-arg=NODE_VERSION=24.15.0
         --build-arg=N8N_VERSION=snapshot
         --build-arg=N8N_RELEASE_TYPE=dev
       image_tag: ${{ matrix.image_tag }}
