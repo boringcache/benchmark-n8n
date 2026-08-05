@@ -11,10 +11,10 @@ tag = "n8n-docker"
 
 [adapters.turbo]
 tag = "n8n-turbo-local"
+command = ["corepack", "pnpm", "turbo", "run", "build", "--summarize"]
 
-[entries.pnpm]
+[entries.pnpm-store]
 tag = "n8n-pnpm-store-local"
-path_env = "PNPM_STORE_DIR"
 
 [profiles.benchmark]
-entries = ["pnpm"]
+entries = ["pnpm-store"]

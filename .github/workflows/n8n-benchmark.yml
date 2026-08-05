@@ -30,12 +30,9 @@ jobs:
     uses: ./.github/workflows/reusable-node-turbo-benchmark.yml
     with:
       benchmark_id: n8n
-      project_repo: n8n-io/n8n
       strategy: actions-cache
       cache_lane: ${{ github.event_name == 'pull_request' && 'fresh' || 'rolling' }}
-      node_version: "24.13.1"
-      install_command: CI=1 pnpm install --frozen-lockfile
-      build_command: CI=1 pnpm turbo run build --summarize
+      node_version: "24.18.1"
     secrets: inherit
 
   boringcache:
@@ -43,10 +40,7 @@ jobs:
     uses: ./.github/workflows/reusable-node-turbo-benchmark.yml
     with:
       benchmark_id: n8n
-      project_repo: n8n-io/n8n
       strategy: boringcache
       cache_lane: ${{ github.event_name == 'pull_request' && 'fresh' || 'rolling' }}
-      node_version: "24.13.1"
-      install_command: CI=1 pnpm install --frozen-lockfile
-      build_command: CI=1 pnpm turbo run build --summarize
+      node_version: "24.18.1"
     secrets: inherit
