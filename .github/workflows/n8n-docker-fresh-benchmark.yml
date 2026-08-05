@@ -1,6 +1,6 @@
 name: "n8n Docker Fresh"
 run-name: >-
-  ${{ format('Benchmark {0} | {1}', inputs.cli_version != '' && 'Canary' || 'Fresh', github.event_name == 'schedule' && 'Weekly' || format('Manual dispatch ({0})', github.ref_name)) }}
+  ${{ format('Benchmark {0} | {1}', github.event_name == 'pull_request' && 'Validation' || inputs.cli_version != '' && 'Canary' || 'Fresh', github.event_name == 'schedule' && 'Weekly' || github.event_name == 'pull_request' && format('PR #{0}', github.event.pull_request.number) || format('Manual dispatch ({0})', github.ref_name)) }}
 
 on:
   workflow_dispatch:
@@ -27,6 +27,16 @@ on:
         default: ""
   schedule:
     - cron: "30 3 * * 6"
+  pull_request:
+    paths:
+      - ".boringcache.toml"
+      - ".gitmodules"
+      - ".github/actions/n8n-docker-benchmark/**"
+      - ".github/workflows/n8n-docker-benchmark.yml"
+      - ".github/workflows/n8n-docker-fresh-benchmark.yml"
+      - "scripts/prepare-source.sh"
+      - "scripts/scope-boringcache-run.sh"
+      - "upstream"
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref_name }}
