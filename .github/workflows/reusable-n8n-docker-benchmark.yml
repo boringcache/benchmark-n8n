@@ -258,14 +258,14 @@ jobs:
           key: ${{ needs.publish.outputs.source_cache_key }}
           fail-on-cache-miss: true
 
-      - name: Replay and republish BoringCache source caches
+      - name: Restore the exact BoringCache source caches
         if: inputs.strategy == 'boringcache'
         uses: boringcache/one@09e053620cda4d3472f26a3ddd181144a108e2c2 # v1.16.8
         with:
           cli-version: ${{ inputs.cli_version }}
           setup: none
           mode: turbo
-          trust-policy: publish
+          trust-policy: restore
           working-directory: upstream
           cache-profiles: benchmark
           fail-on-cache-miss: true
@@ -274,7 +274,6 @@ jobs:
           proxy-port: "22244"
         env:
           BORINGCACHE_RESTORE_TOKEN: ${{ secrets.BORINGCACHE_RESTORE_TOKEN }}
-          BORINGCACHE_SAVE_TOKEN: ${{ secrets.BORINGCACHE_SAVE_TOKEN }}
           BORINGCACHE_NO_GIT: "true"
 
       - name: Install n8n dependencies
@@ -314,14 +313,14 @@ jobs:
             --load \
             upstream
 
-      - name: Replay and republish the BoringCache Docker cache
+      - name: Restore the exact BoringCache Docker cache
         if: inputs.strategy == 'boringcache'
         uses: boringcache/one@09e053620cda4d3472f26a3ddd181144a108e2c2 # v1.16.8
         with:
           cli-version: ${{ inputs.cli_version }}
           setup: none
           mode: docker
-          trust-policy: publish
+          trust-policy: restore
           working-directory: .
           context: upstream
           dockerfile: ${{ inputs.dockerfile_path }}
@@ -337,7 +336,6 @@ jobs:
           managed-buildkit-image: ${{ inputs.buildkit_image }}
         env:
           BORINGCACHE_RESTORE_TOKEN: ${{ secrets.BORINGCACHE_RESTORE_TOKEN }}
-          BORINGCACHE_SAVE_TOKEN: ${{ secrets.BORINGCACHE_SAVE_TOKEN }}
           BORINGCACHE_NO_GIT: "true"
 
       - name: Verify the restored image

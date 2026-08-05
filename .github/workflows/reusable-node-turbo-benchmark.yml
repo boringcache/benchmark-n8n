@@ -199,7 +199,7 @@ jobs:
           key: ${{ needs.publish.outputs.cache_key }}
           fail-on-cache-miss: true
 
-      - name: Replay and republish the BoringCache cohort
+      - name: Restore the exact BoringCache cohort
         if: inputs.strategy == 'boringcache'
         id: boringcache
         uses: boringcache/one@09e053620cda4d3472f26a3ddd181144a108e2c2 # v1.16.8
@@ -207,7 +207,7 @@ jobs:
           cli-version: ${{ inputs.cli_version }}
           setup: none
           mode: turbo
-          trust-policy: publish
+          trust-policy: restore
           working-directory: upstream
           cache-profiles: benchmark
           fail-on-cache-miss: true
@@ -215,7 +215,6 @@ jobs:
           metadata-hints: phase=fresh-warm
         env:
           BORINGCACHE_RESTORE_TOKEN: ${{ secrets.BORINGCACHE_RESTORE_TOKEN }}
-          BORINGCACHE_SAVE_TOKEN: ${{ secrets.BORINGCACHE_SAVE_TOKEN }}
           BORINGCACHE_NO_GIT: "true"
 
       - name: Install n8n dependencies
