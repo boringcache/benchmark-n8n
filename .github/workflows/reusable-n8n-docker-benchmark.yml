@@ -44,7 +44,6 @@ jobs:
     timeout-minutes: 180
     outputs:
       cache_scope: ${{ steps.scope.outputs.cache_scope }}
-      source_cache_key: ${{ steps.scope.outputs.source_cache_key }}
 
     steps:
       - name: Validate benchmark strategy
@@ -89,9 +88,7 @@ jobs:
           fi
 
           ./scripts/scope-boringcache-run.sh "$cache_scope"
-          source_sha="$(git rev-parse HEAD:upstream)"
           echo "cache_scope=${cache_scope}" >> "$GITHUB_OUTPUT"
-          echo "source_cache_key=n8n-source-${cache_scope}-${source_sha}" >> "$GITHUB_OUTPUT"
 
       - name: Set up Node.js
         uses: actions/setup-node@v6
@@ -103,41 +100,6 @@ jobs:
         run: |
           corepack enable
           corepack install
-
-      - name: Select the GitHub Actions pnpm store
-        if: inputs.strategy == 'actions-cache'
-        run: |
-          echo "PNPM_STORE_DIR=${GITHUB_WORKSPACE}/.pnpm-store" >> "$GITHUB_ENV"
-          echo "npm_config_store_dir=${GITHUB_WORKSPACE}/.pnpm-store" >> "$GITHUB_ENV"
-
-      - name: Restore source caches with GitHub Actions
-        if: inputs.strategy == 'actions-cache'
-        uses: actions/cache@v5
-        with:
-          path: |
-            ${{ github.workspace }}/.pnpm-store
-            upstream/.turbo
-          key: ${{ steps.scope.outputs.source_cache_key }}
-          restore-keys: |
-            n8n-source-${{ steps.scope.outputs.cache_scope }}-
-
-      - name: Configure BoringCache for n8n source preparation
-        if: inputs.strategy == 'boringcache'
-        uses: boringcache/one@09e053620cda4d3472f26a3ddd181144a108e2c2 # v1.16.8
-        with:
-          cli-version: ${{ inputs.cli_version }}
-          setup: none
-          mode: turbo
-          trust-policy: publish
-          working-directory: upstream
-          cache-profiles: benchmark
-          fail-on-cache-error: true
-          metadata-hints: benchmark=${{ inputs.benchmark_id }},phase=${{ inputs.cache_lane == 'rolling' && 'rolling-source' || 'fresh-cold-source' }}
-          proxy-port: "22244"
-        env:
-          BORINGCACHE_RESTORE_TOKEN: ${{ secrets.BORINGCACHE_RESTORE_TOKEN }}
-          BORINGCACHE_SAVE_TOKEN: ${{ secrets.BORINGCACHE_SAVE_TOKEN }}
-          BORINGCACHE_NO_GIT: "true"
 
       - name: Install n8n dependencies
         working-directory: upstream
@@ -242,45 +204,11 @@ jobs:
           corepack enable
           corepack install
 
-      - name: Select the GitHub Actions pnpm store
-        if: inputs.strategy == 'actions-cache'
-        run: |
-          echo "PNPM_STORE_DIR=${GITHUB_WORKSPACE}/.pnpm-store" >> "$GITHUB_ENV"
-          echo "npm_config_store_dir=${GITHUB_WORKSPACE}/.pnpm-store" >> "$GITHUB_ENV"
-
-      - name: Restore exact source caches with GitHub Actions
-        if: inputs.strategy == 'actions-cache'
-        uses: actions/cache/restore@v5
-        with:
-          path: |
-            ${{ github.workspace }}/.pnpm-store
-            upstream/.turbo
-          key: ${{ needs.publish.outputs.source_cache_key }}
-          fail-on-cache-miss: true
-
-      - name: Restore the exact BoringCache source caches
-        if: inputs.strategy == 'boringcache'
-        uses: boringcache/one@09e053620cda4d3472f26a3ddd181144a108e2c2 # v1.16.8
-        with:
-          cli-version: ${{ inputs.cli_version }}
-          setup: none
-          mode: turbo
-          trust-policy: restore
-          working-directory: upstream
-          cache-profiles: benchmark
-          fail-on-cache-miss: true
-          fail-on-cache-error: true
-          metadata-hints: benchmark=${{ inputs.benchmark_id }},phase=fresh-warm-source
-          proxy-port: "22244"
-        env:
-          BORINGCACHE_RESTORE_TOKEN: ${{ secrets.BORINGCACHE_RESTORE_TOKEN }}
-          BORINGCACHE_NO_GIT: "true"
-
       - name: Install n8n dependencies
         working-directory: upstream
         env:
           CI: "1"
-        run: corepack pnpm install --offline --frozen-lockfile
+        run: corepack pnpm install --frozen-lockfile
 
       - name: Build n8n source
         working-directory: upstream

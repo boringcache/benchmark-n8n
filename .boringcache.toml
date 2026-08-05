@@ -1,20 +1,8 @@
 workspace = "boringcache/benchmark-n8n"
 
-# Turbo remote-cache benchmark. boringcache/one mode=turbo owns the
-# task-output cache, so the benchmark profile archives only the pnpm store
-# that the remote adapter does not cover.
-# Profile entries use the Action's deterministic tar transport, which preserves
-# pnpm's workspace-back symlinks without a workflow or repo-plan escape hatch.
-
 [adapters.docker]
 tag = "n8n-docker"
 
 [adapters.turbo]
 tag = "n8n-turbo-local"
 command = ["corepack", "pnpm", "turbo", "run", "build", "--summarize"]
-
-[entries.pnpm-store]
-tag = "n8n-pnpm-store-local"
-
-[profiles.benchmark]
-entries = ["pnpm-store"]

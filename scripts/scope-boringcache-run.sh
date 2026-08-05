@@ -12,8 +12,7 @@ fi
 config_path="${repo_root}/.boringcache.toml"
 for mapping in \
   "n8n-docker:${scope}-docker" \
-  "n8n-turbo-local:${scope}-turbo" \
-  "n8n-pnpm-store-local:${scope}-pnpm-store"; do
+  "n8n-turbo-local:${scope}-turbo"; do
   old_tag="${mapping%%:*}"
   new_tag="${mapping#*:}"
   if ! grep -Fq "tag = \"${old_tag}\"" "$config_path"; then

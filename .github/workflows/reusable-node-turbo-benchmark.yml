@@ -90,19 +90,11 @@ jobs:
           corepack enable
           corepack install
 
-      - name: Select the GitHub Actions pnpm store
-        if: inputs.strategy == 'actions-cache'
-        run: |
-          echo "PNPM_STORE_DIR=${GITHUB_WORKSPACE}/.pnpm-store" >> "$GITHUB_ENV"
-          echo "npm_config_store_dir=${GITHUB_WORKSPACE}/.pnpm-store" >> "$GITHUB_ENV"
-
       - name: Restore the GitHub Actions cache
         if: inputs.strategy == 'actions-cache'
         uses: actions/cache@v5
         with:
-          path: |
-            ${{ github.workspace }}/.pnpm-store
-            upstream/.turbo
+          path: upstream/.turbo
           key: ${{ steps.scope.outputs.cache_key }}
           restore-keys: |
             turbo-${{ steps.scope.outputs.cache_scope }}-
@@ -117,7 +109,6 @@ jobs:
           mode: turbo
           trust-policy: publish
           working-directory: upstream
-          cache-profiles: benchmark
           fail-on-cache-error: true
           metadata-hints: phase=${{ inputs.cache_lane == 'rolling' && 'rolling' || 'fresh-cold' }}
         env:
@@ -183,19 +174,11 @@ jobs:
           corepack enable
           corepack install
 
-      - name: Select the GitHub Actions pnpm store
-        if: inputs.strategy == 'actions-cache'
-        run: |
-          echo "PNPM_STORE_DIR=${GITHUB_WORKSPACE}/.pnpm-store" >> "$GITHUB_ENV"
-          echo "npm_config_store_dir=${GITHUB_WORKSPACE}/.pnpm-store" >> "$GITHUB_ENV"
-
       - name: Restore the exact GitHub Actions cache
         if: inputs.strategy == 'actions-cache'
         uses: actions/cache/restore@v5
         with:
-          path: |
-            ${{ github.workspace }}/.pnpm-store
-            upstream/.turbo
+          path: upstream/.turbo
           key: ${{ needs.publish.outputs.cache_key }}
           fail-on-cache-miss: true
 
@@ -209,7 +192,6 @@ jobs:
           mode: turbo
           trust-policy: restore
           working-directory: upstream
-          cache-profiles: benchmark
           fail-on-cache-miss: true
           fail-on-cache-error: true
           metadata-hints: phase=fresh-warm
