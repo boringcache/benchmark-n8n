@@ -11,12 +11,12 @@ on:
         type: string
         default: ""
       cli_version:
-        description: "Optional BoringCache CLI release tag for canary runs, for example vcli-canary."
+        description: "Optional exact BoringCache CLI release tag for canary runs."
         required: false
         type: string
         default: ""
       benchmark_id_suffix:
-        description: "Optional suffix appended to built-in benchmark/cache scopes for isolated comparison runs."
+        description: "Optional suffix for an isolated comparison run."
         required: false
         type: string
         default: ""
@@ -42,33 +42,23 @@ jobs:
           - label: n8n
             benchmark_id: n8n-docker
             dockerfile_path: upstream/docker/images/n8n/Dockerfile
-            image_tag: n8n-benchmark:latest
+            image: n8n-benchmark
           - label: runners
             benchmark_id: n8n-runners
             dockerfile_path: upstream/docker/images/runners/Dockerfile
-            image_tag: n8n-runners-benchmark:latest
+            image: n8n-runners-benchmark
           - label: distroless
             benchmark_id: n8n-runners-distroless
             dockerfile_path: upstream/docker/images/runners/Dockerfile.distroless
-            image_tag: n8n-runners-distroless-benchmark:latest
-    uses: ./.github/workflows/reusable-docker-buildkit-benchmark.yml
+            image: n8n-runners-distroless-benchmark
+    uses: ./.github/workflows/reusable-n8n-docker-benchmark.yml
     with:
       strategy: actions-cache
       cache_lane: fresh
       benchmark_id: ${{ format('{0}{1}', matrix.benchmark_id, inputs.benchmark_id_suffix) }}
-      project_repo: n8n-io/n8n
       dockerfile_path: ${{ matrix.dockerfile_path }}
-      docker_context: upstream
-      docker_build_args: |
-        --build-arg=N8N_VERSION=snapshot
-        --build-arg=N8N_RELEASE_TYPE=dev
-      image_tag: ${{ matrix.image_tag }}
-      prepare_install_command: CI=true pnpm install --frozen-lockfile
-      prepare_command: CI=true N8N_SKIP_LICENSES=true pnpm build:n8n
-      prepare_node_version: "24.13.1"
-      reuse_prepared_context_for_warm: true
-      require_warm_cached_steps: true
-      benchmark_workspace: ${{ github.repository }}
+      image: ${{ matrix.image }}
+      node_version: "24.18.1"
     secrets: inherit
 
   boringcache:
@@ -80,33 +70,23 @@ jobs:
           - label: n8n
             benchmark_id: n8n-docker
             dockerfile_path: upstream/docker/images/n8n/Dockerfile
-            image_tag: n8n-benchmark:latest
+            image: n8n-benchmark
           - label: runners
             benchmark_id: n8n-runners
             dockerfile_path: upstream/docker/images/runners/Dockerfile
-            image_tag: n8n-runners-benchmark:latest
+            image: n8n-runners-benchmark
           - label: distroless
             benchmark_id: n8n-runners-distroless
             dockerfile_path: upstream/docker/images/runners/Dockerfile.distroless
-            image_tag: n8n-runners-distroless-benchmark:latest
-    uses: ./.github/workflows/reusable-docker-buildkit-benchmark.yml
+            image: n8n-runners-distroless-benchmark
+    uses: ./.github/workflows/reusable-n8n-docker-benchmark.yml
     with:
       strategy: boringcache
       cache_lane: fresh
-      benchmark_id: ${{ matrix.benchmark_id }}
-      project_repo: n8n-io/n8n
-      dockerfile_path: ${{ matrix.dockerfile_path }}
-      docker_context: upstream
-      docker_build_args: |
-        --build-arg=N8N_VERSION=snapshot
-        --build-arg=N8N_RELEASE_TYPE=dev
-      image_tag: ${{ matrix.image_tag }}
-      prepare_install_command: CI=true pnpm install --frozen-lockfile
-      prepare_command: CI=true N8N_SKIP_LICENSES=true pnpm build:n8n
-      prepare_node_version: "24.13.1"
-      reuse_prepared_context_for_warm: true
-      require_warm_cached_steps: true
-      cli_platform: linux-amd64
+      benchmark_id: ${{ format('{0}{1}', matrix.benchmark_id, inputs.benchmark_id_suffix) }}
+      cli_version: ${{ inputs.cli_version }}
       buildkit_image: ${{ inputs.buildkit_image }}
-      benchmark_workspace: ${{ github.repository }}
+      dockerfile_path: ${{ matrix.dockerfile_path }}
+      image: ${{ matrix.image }}
+      node_version: "24.18.1"
     secrets: inherit

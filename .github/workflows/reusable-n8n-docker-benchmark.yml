@@ -1,4 +1,4 @@
-name: "Reusable Node Turbo Benchmark"
+name: "Reusable n8n Docker Benchmark"
 
 on:
   workflow_call:
@@ -18,6 +18,17 @@ on:
         required: false
         type: string
         default: ""
+      buildkit_image:
+        description: "Optional managed BoringCache BuildKit image."
+        required: false
+        type: string
+        default: ""
+      dockerfile_path:
+        required: true
+        type: string
+      image:
+        required: true
+        type: string
       node_version:
         required: true
         type: string
@@ -32,15 +43,18 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 180
     outputs:
-      cache_key: ${{ steps.scope.outputs.cache_key }}
       cache_scope: ${{ steps.scope.outputs.cache_scope }}
+      source_cache_key: ${{ steps.scope.outputs.source_cache_key }}
+
     steps:
       - name: Validate benchmark strategy
+        env:
+          STRATEGY: ${{ inputs.strategy }}
         run: |
-          case "${{ inputs.strategy }}" in
+          case "$STRATEGY" in
             actions-cache|boringcache) ;;
             *)
-              echo "Unsupported benchmark strategy: ${{ inputs.strategy }}" >&2
+              echo "Unsupported benchmark strategy: $STRATEGY" >&2
               exit 1
               ;;
           esac
@@ -64,7 +78,7 @@ jobs:
         run: |
           set -euo pipefail
 
-          ref_slug="$(printf '%s' "${GITHUB_REF_NAME}" | tr -c 'A-Za-z0-9._-' '-')"
+          ref_slug="$(printf '%s' "$GITHUB_REF_NAME" | tr -c 'A-Za-z0-9._-' '-')"
           ref_slug="${ref_slug#-}"
           ref_slug="${ref_slug%-}"
           ref_slug="${ref_slug:-main}"
@@ -77,7 +91,7 @@ jobs:
           ./scripts/scope-boringcache-run.sh "$cache_scope"
           source_sha="$(git rev-parse HEAD:upstream)"
           echo "cache_scope=${cache_scope}" >> "$GITHUB_OUTPUT"
-          echo "cache_key=turbo-${cache_scope}-${source_sha}" >> "$GITHUB_OUTPUT"
+          echo "source_cache_key=n8n-source-${cache_scope}-${source_sha}" >> "$GITHUB_OUTPUT"
 
       - name: Set up Node.js
         uses: actions/setup-node@v6
@@ -96,20 +110,19 @@ jobs:
           echo "PNPM_STORE_DIR=${GITHUB_WORKSPACE}/.pnpm-store" >> "$GITHUB_ENV"
           echo "npm_config_store_dir=${GITHUB_WORKSPACE}/.pnpm-store" >> "$GITHUB_ENV"
 
-      - name: Restore the GitHub Actions cache
+      - name: Restore source caches with GitHub Actions
         if: inputs.strategy == 'actions-cache'
         uses: actions/cache@v5
         with:
           path: |
             ${{ github.workspace }}/.pnpm-store
             upstream/.turbo
-          key: ${{ steps.scope.outputs.cache_key }}
+          key: ${{ steps.scope.outputs.source_cache_key }}
           restore-keys: |
-            turbo-${{ steps.scope.outputs.cache_scope }}-
+            n8n-source-${{ steps.scope.outputs.cache_scope }}-
 
-      - name: Configure BoringCache One for the n8n build
+      - name: Configure BoringCache for n8n source preparation
         if: inputs.strategy == 'boringcache'
-        id: boringcache
         uses: boringcache/one@09e053620cda4d3472f26a3ddd181144a108e2c2 # v1.16.8
         with:
           cli-version: ${{ inputs.cli_version }}
@@ -119,7 +132,8 @@ jobs:
           working-directory: upstream
           cache-profiles: benchmark
           fail-on-cache-error: true
-          metadata-hints: phase=${{ inputs.cache_lane == 'rolling' && 'rolling' || 'fresh-cold' }}
+          metadata-hints: benchmark=${{ inputs.benchmark_id }},phase=${{ inputs.cache_lane == 'rolling' && 'rolling-source' || 'fresh-cold-source' }}
+          proxy-port: "22244"
         env:
           BORINGCACHE_RESTORE_TOKEN: ${{ secrets.BORINGCACHE_RESTORE_TOKEN }}
           BORINGCACHE_SAVE_TOKEN: ${{ secrets.BORINGCACHE_SAVE_TOKEN }}
@@ -131,29 +145,74 @@ jobs:
           CI: "1"
         run: corepack pnpm install --frozen-lockfile
 
-      - name: Build n8n
+      - name: Build n8n source
         working-directory: upstream
         env:
           CI: "1"
-        run: corepack pnpm turbo run build --summarize
+          N8N_SKIP_LICENSES: "true"
+        run: corepack pnpm build:n8n
 
-      - name: Verify the n8n build
+      - name: Verify the n8n build context
         run: test -s upstream/packages/cli/dist/index.js
 
-      - name: Retain product evidence
-        if: inputs.strategy == 'boringcache'
-        uses: actions/upload-artifact@v6
-        with:
-          name: n8n-turbo-${{ inputs.cache_lane }}-publish
-          path: ${{ steps.boringcache.outputs.evidence-path }}
-          if-no-files-found: error
+      - name: Set up Buildx for the GitHub Actions comparison
+        if: inputs.strategy == 'actions-cache'
+        uses: docker/setup-buildx-action@v4
 
-  restore:
+      - name: Build with the GitHub Actions cache
+        if: inputs.strategy == 'actions-cache'
+        env:
+          CACHE_SCOPE: ${{ steps.scope.outputs.cache_scope }}
+          DOCKERFILE_PATH: ${{ inputs.dockerfile_path }}
+          IMAGE: ${{ inputs.image }}
+        run: |
+          docker buildx build \
+            --file "$DOCKERFILE_PATH" \
+            --tag "${IMAGE}:latest" \
+            --build-arg N8N_VERSION=snapshot \
+            --build-arg N8N_RELEASE_TYPE=dev \
+            --cache-from "type=gha,scope=${CACHE_SCOPE}" \
+            --cache-to "type=gha,scope=${CACHE_SCOPE},mode=max" \
+            --load \
+            upstream
+
+      - name: Build with BoringCache
+        if: inputs.strategy == 'boringcache'
+        uses: boringcache/one@09e053620cda4d3472f26a3ddd181144a108e2c2 # v1.16.8
+        with:
+          cli-version: ${{ inputs.cli_version }}
+          setup: none
+          mode: docker
+          trust-policy: publish
+          working-directory: .
+          context: upstream
+          dockerfile: ${{ inputs.dockerfile_path }}
+          image: ${{ inputs.image }}
+          tags: latest
+          build-args: |
+            N8N_VERSION=snapshot
+            N8N_RELEASE_TYPE=dev
+          load: true
+          fail-on-cache-error: true
+          metadata-hints: benchmark=${{ inputs.benchmark_id }},phase=${{ inputs.cache_lane == 'rolling' && 'rolling-docker' || 'fresh-cold-docker' }}
+          managed-buildkit-image: ${{ inputs.buildkit_image }}
+        env:
+          BORINGCACHE_RESTORE_TOKEN: ${{ secrets.BORINGCACHE_RESTORE_TOKEN }}
+          BORINGCACHE_SAVE_TOKEN: ${{ secrets.BORINGCACHE_SAVE_TOKEN }}
+          BORINGCACHE_NO_GIT: "true"
+
+      - name: Verify the built image
+        env:
+          IMAGE: ${{ inputs.image }}
+        run: docker image inspect "${IMAGE}:latest" >/dev/null
+
+  replay:
     name: Warm
     needs: publish
     if: inputs.cache_lane == 'fresh'
     runs-on: ubuntu-latest
     timeout-minutes: 180
+
     steps:
       - name: Checkout benchmark repository
         uses: actions/checkout@v6
@@ -189,19 +248,18 @@ jobs:
           echo "PNPM_STORE_DIR=${GITHUB_WORKSPACE}/.pnpm-store" >> "$GITHUB_ENV"
           echo "npm_config_store_dir=${GITHUB_WORKSPACE}/.pnpm-store" >> "$GITHUB_ENV"
 
-      - name: Restore the exact GitHub Actions cache
+      - name: Restore exact source caches with GitHub Actions
         if: inputs.strategy == 'actions-cache'
         uses: actions/cache/restore@v5
         with:
           path: |
             ${{ github.workspace }}/.pnpm-store
             upstream/.turbo
-          key: ${{ needs.publish.outputs.cache_key }}
+          key: ${{ needs.publish.outputs.source_cache_key }}
           fail-on-cache-miss: true
 
-      - name: Replay and republish the BoringCache cohort
+      - name: Replay and republish BoringCache source caches
         if: inputs.strategy == 'boringcache'
-        id: boringcache
         uses: boringcache/one@09e053620cda4d3472f26a3ddd181144a108e2c2 # v1.16.8
         with:
           cli-version: ${{ inputs.cli_version }}
@@ -212,7 +270,8 @@ jobs:
           cache-profiles: benchmark
           fail-on-cache-miss: true
           fail-on-cache-error: true
-          metadata-hints: phase=fresh-warm
+          metadata-hints: benchmark=${{ inputs.benchmark_id }},phase=fresh-warm-source
+          proxy-port: "22244"
         env:
           BORINGCACHE_RESTORE_TOKEN: ${{ secrets.BORINGCACHE_RESTORE_TOKEN }}
           BORINGCACHE_SAVE_TOKEN: ${{ secrets.BORINGCACHE_SAVE_TOKEN }}
@@ -222,21 +281,66 @@ jobs:
         working-directory: upstream
         env:
           CI: "1"
-        run: corepack pnpm install --frozen-lockfile
+        run: corepack pnpm install --offline --frozen-lockfile
 
-      - name: Build n8n
+      - name: Build n8n source
         working-directory: upstream
         env:
           CI: "1"
-        run: corepack pnpm turbo run build --summarize
+          N8N_SKIP_LICENSES: "true"
+        run: corepack pnpm build:n8n
 
-      - name: Verify the restored n8n build
+      - name: Verify the restored n8n build context
         run: test -s upstream/packages/cli/dist/index.js
 
-      - name: Retain product evidence
+      - name: Set up Buildx for the GitHub Actions comparison
+        if: inputs.strategy == 'actions-cache'
+        uses: docker/setup-buildx-action@v4
+
+      - name: Build with the exact GitHub Actions cache
+        if: inputs.strategy == 'actions-cache'
+        env:
+          CACHE_SCOPE: ${{ needs.publish.outputs.cache_scope }}
+          DOCKERFILE_PATH: ${{ inputs.dockerfile_path }}
+          IMAGE: ${{ inputs.image }}
+        run: |
+          docker buildx build \
+            --file "$DOCKERFILE_PATH" \
+            --tag "${IMAGE}:latest" \
+            --build-arg N8N_VERSION=snapshot \
+            --build-arg N8N_RELEASE_TYPE=dev \
+            --cache-from "type=gha,scope=${CACHE_SCOPE}" \
+            --cache-to "type=gha,scope=${CACHE_SCOPE},mode=max" \
+            --load \
+            upstream
+
+      - name: Replay and republish the BoringCache Docker cache
         if: inputs.strategy == 'boringcache'
-        uses: actions/upload-artifact@v6
+        uses: boringcache/one@09e053620cda4d3472f26a3ddd181144a108e2c2 # v1.16.8
         with:
-          name: n8n-turbo-fresh-restore
-          path: ${{ steps.boringcache.outputs.evidence-path }}
-          if-no-files-found: error
+          cli-version: ${{ inputs.cli_version }}
+          setup: none
+          mode: docker
+          trust-policy: publish
+          working-directory: .
+          context: upstream
+          dockerfile: ${{ inputs.dockerfile_path }}
+          image: ${{ inputs.image }}
+          tags: latest
+          build-args: |
+            N8N_VERSION=snapshot
+            N8N_RELEASE_TYPE=dev
+          load: true
+          fail-on-cache-miss: true
+          fail-on-cache-error: true
+          metadata-hints: benchmark=${{ inputs.benchmark_id }},phase=fresh-warm-docker
+          managed-buildkit-image: ${{ inputs.buildkit_image }}
+        env:
+          BORINGCACHE_RESTORE_TOKEN: ${{ secrets.BORINGCACHE_RESTORE_TOKEN }}
+          BORINGCACHE_SAVE_TOKEN: ${{ secrets.BORINGCACHE_SAVE_TOKEN }}
+          BORINGCACHE_NO_GIT: "true"
+
+      - name: Verify the restored image
+        env:
+          IMAGE: ${{ inputs.image }}
+        run: docker image inspect "${IMAGE}:latest" >/dev/null

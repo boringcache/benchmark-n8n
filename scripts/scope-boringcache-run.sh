@@ -11,6 +11,7 @@ fi
 
 config_path="${repo_root}/.boringcache.toml"
 for mapping in \
+  "n8n-docker:${scope}-docker" \
   "n8n-turbo-local:${scope}-turbo" \
   "n8n-pnpm-store-local:${scope}-pnpm-store"; do
   old_tag="${mapping%%:*}"
@@ -22,4 +23,4 @@ for mapping in \
   sed -i "s/tag = \"${old_tag}\"/tag = \"${new_tag}\"/" "$config_path"
 done
 
-echo "Scoped BoringCache Turbo tags to ${scope}."
+echo "Scoped BoringCache tags to ${scope}."
