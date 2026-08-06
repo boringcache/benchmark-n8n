@@ -108,6 +108,13 @@ runs:
       shell: bash
       run: test -s upstream/packages/cli/dist/index.js
 
+    - name: Log in to the GitHub Container Registry
+      if: github.event_name != 'pull_request'
+      uses: docker/login-action@v3
+      with:
+        registry: ghcr.io
+        username: ${{ github.actor }}
+        password: ${{ github.token }}
     - name: Start the provider setup timer
       id: setup_timer
       shell: bash
@@ -132,7 +139,8 @@ runs:
       with:
         context: upstream
         file: ${{ inputs.dockerfile_path }}
-        tags: ${{ inputs.image }}:latest
+        tags: ghcr.io/${{ github.repository_owner }}/${{ inputs.image }}:actions-cache
+        push: ${{ github.event_name != 'pull_request' }}
         build-args: |
           N8N_VERSION=snapshot
           N8N_RELEASE_TYPE=dev
@@ -152,8 +160,9 @@ runs:
         working-directory: .
         context: upstream
         dockerfile: ${{ inputs.dockerfile_path }}
-        image: ${{ inputs.image }}
-        tags: latest
+        image: ghcr.io/${{ github.repository_owner }}/${{ inputs.image }}
+        tags: boringcache
+        push: ${{ github.event_name != 'pull_request' }}
         build-args: |
           N8N_VERSION=snapshot
           N8N_RELEASE_TYPE=dev
@@ -174,8 +183,9 @@ runs:
         working-directory: .
         context: upstream
         dockerfile: ${{ inputs.dockerfile_path }}
-        image: ${{ inputs.image }}
-        tags: latest
+        image: ghcr.io/${{ github.repository_owner }}/${{ inputs.image }}
+        tags: boringcache
+        push: ${{ github.event_name != 'pull_request' }}
         build-args: |
           N8N_VERSION=snapshot
           N8N_RELEASE_TYPE=dev
