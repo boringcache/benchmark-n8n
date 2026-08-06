@@ -110,3 +110,57 @@ jobs:
           dockerfile_path: ${{ matrix.dockerfile_path }}
           image: ${{ matrix.image }}
           node_version: "24.18.1"
+  report:
+    name: n8n Docker rolling report
+    needs: publish
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v6
+      - name: Download the benchmark phase evidence
+        uses: actions/download-artifact@v6
+        with:
+          pattern: phase-*
+          path: phase-evidence
+      - name: Publish the n8n Docker benchmark report
+        run: |
+          python3 ./scripts/benchmark-report.py summarize \
+            --title "n8n Docker rolling benchmark" \
+            --input-dir phase-evidence \
+            --output-dir benchmark-results
+      - name: Retain the n8n-docker BoringCache rolling result
+        uses: actions/upload-artifact@v6
+        with:
+          name: benchmark-n8n-docker-boringcache-rolling
+          path: benchmark-results/n8n-docker-boringcache-rolling.json
+          if-no-files-found: error
+      - name: Retain the n8n-docker GitHub Actions rolling result
+        uses: actions/upload-artifact@v6
+        with:
+          name: benchmark-n8n-docker-actions-cache-rolling
+          path: benchmark-results/n8n-docker-actions-cache-rolling.json
+          if-no-files-found: error
+      - name: Retain the n8n-runners BoringCache rolling result
+        uses: actions/upload-artifact@v6
+        with:
+          name: benchmark-n8n-runners-boringcache-rolling
+          path: benchmark-results/n8n-runners-boringcache-rolling.json
+          if-no-files-found: error
+      - name: Retain the n8n-runners GitHub Actions rolling result
+        uses: actions/upload-artifact@v6
+        with:
+          name: benchmark-n8n-runners-actions-cache-rolling
+          path: benchmark-results/n8n-runners-actions-cache-rolling.json
+          if-no-files-found: error
+      - name: Retain the n8n-runners-distroless BoringCache rolling result
+        uses: actions/upload-artifact@v6
+        with:
+          name: benchmark-n8n-runners-distroless-boringcache-rolling
+          path: benchmark-results/n8n-runners-distroless-boringcache-rolling.json
+          if-no-files-found: error
+      - name: Retain the n8n-runners-distroless GitHub Actions rolling result
+        uses: actions/upload-artifact@v6
+        with:
+          name: benchmark-n8n-runners-distroless-actions-cache-rolling
+          path: benchmark-results/n8n-runners-distroless-actions-cache-rolling.json
+          if-no-files-found: error

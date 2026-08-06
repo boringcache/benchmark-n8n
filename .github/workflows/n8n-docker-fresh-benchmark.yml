@@ -170,3 +170,57 @@ jobs:
           dockerfile_path: ${{ matrix.dockerfile_path }}
           image: ${{ matrix.image }}
           node_version: "24.18.1"
+  report:
+    name: n8n Docker fresh report
+    needs: warm
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v6
+      - name: Download the benchmark phase evidence
+        uses: actions/download-artifact@v6
+        with:
+          pattern: phase-*
+          path: phase-evidence
+      - name: Publish the n8n Docker benchmark report
+        run: |
+          python3 ./scripts/benchmark-report.py summarize \
+            --title "n8n Docker fresh benchmark" \
+            --input-dir phase-evidence \
+            --output-dir benchmark-results
+      - name: Retain the n8n-docker BoringCache fresh result
+        uses: actions/upload-artifact@v6
+        with:
+          name: benchmark-n8n-docker-boringcache-fresh
+          path: benchmark-results/n8n-docker-boringcache-fresh.json
+          if-no-files-found: error
+      - name: Retain the n8n-docker GitHub Actions fresh result
+        uses: actions/upload-artifact@v6
+        with:
+          name: benchmark-n8n-docker-actions-cache-fresh
+          path: benchmark-results/n8n-docker-actions-cache-fresh.json
+          if-no-files-found: error
+      - name: Retain the n8n-runners BoringCache fresh result
+        uses: actions/upload-artifact@v6
+        with:
+          name: benchmark-n8n-runners-boringcache-fresh
+          path: benchmark-results/n8n-runners-boringcache-fresh.json
+          if-no-files-found: error
+      - name: Retain the n8n-runners GitHub Actions fresh result
+        uses: actions/upload-artifact@v6
+        with:
+          name: benchmark-n8n-runners-actions-cache-fresh
+          path: benchmark-results/n8n-runners-actions-cache-fresh.json
+          if-no-files-found: error
+      - name: Retain the n8n-runners-distroless BoringCache fresh result
+        uses: actions/upload-artifact@v6
+        with:
+          name: benchmark-n8n-runners-distroless-boringcache-fresh
+          path: benchmark-results/n8n-runners-distroless-boringcache-fresh.json
+          if-no-files-found: error
+      - name: Retain the n8n-runners-distroless GitHub Actions fresh result
+        uses: actions/upload-artifact@v6
+        with:
+          name: benchmark-n8n-runners-distroless-actions-cache-fresh
+          path: benchmark-results/n8n-runners-distroless-actions-cache-fresh.json
+          if-no-files-found: error

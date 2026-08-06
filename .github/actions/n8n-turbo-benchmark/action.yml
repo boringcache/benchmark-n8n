@@ -19,6 +19,10 @@ inputs:
 runs:
   using: composite
   steps:
+    - name: Start the workflow timer
+      id: workflow_timer
+      shell: bash
+      run: echo "started_at=$(date +%s)" >> "$GITHUB_OUTPUT"
     - name: Validate benchmark strategy
       shell: bash
       env:
@@ -78,6 +82,10 @@ runs:
         corepack enable
         corepack install
 
+    - name: Start the provider setup timer
+      id: setup_timer
+      shell: bash
+      run: echo "started_at=$(date +%s)" >> "$GITHUB_OUTPUT"
     - name: Restore the GitHub Actions cache
       if: inputs.strategy == 'actions-cache' && inputs.phase == 'publish'
       uses: actions/cache@v5
@@ -122,6 +130,16 @@ runs:
         fail-on-cache-error: true
         metadata-hints: phase=fresh-warm
 
+    - name: Start the build timer
+      id: build_timer
+      shell: bash
+      env:
+        SETUP_STARTED_AT: ${{ steps.setup_timer.outputs.started_at }}
+      run: |
+        set -euo pipefail
+        now="$(date +%s)"
+        echo "setup_seconds=$(( now - SETUP_STARTED_AT ))" >> "$GITHUB_OUTPUT"
+        echo "started_at=${now}" >> "$GITHUB_OUTPUT"
     - name: Install n8n dependencies
       shell: bash
       working-directory: upstream
@@ -136,6 +154,12 @@ runs:
         CI: "1"
       run: corepack pnpm turbo run build --summarize
 
+    - name: Capture the build timing
+      id: build_timing
+      shell: bash
+      env:
+        BUILD_STARTED_AT: ${{ steps.build_timer.outputs.started_at }}
+      run: echo "build_seconds=$(( $(date +%s) - BUILD_STARTED_AT ))" >> "$GITHUB_OUTPUT"
     - name: Verify the n8n build
       shell: bash
       run: test -s upstream/packages/cli/dist/index.js
@@ -154,4 +178,45 @@ runs:
       with:
         name: n8n-turbo-fresh-restore
         path: ${{ steps.boringcache-restore.outputs.evidence-path }}
+        if-no-files-found: error
+    - name: Write the benchmark phase evidence
+      shell: bash
+      env:
+        BENCHMARK_ID: ${{ inputs.benchmark_id }}
+        STRATEGY: ${{ inputs.strategy }}
+        CACHE_LANE: ${{ inputs.cache_lane }}
+        REPORT_PHASE: ${{ inputs.cache_lane == 'rolling' && 'commit' || inputs.phase == 'warm' && 'warm' || 'cold' }}
+        WORKFLOW_STARTED_AT: ${{ steps.workflow_timer.outputs.started_at }}
+        SETUP_SECONDS: ${{ steps.build_timer.outputs.setup_seconds }}
+        BUILD_SECONDS: ${{ steps.build_timing.outputs.build_seconds }}
+        CACHE_HIT: ${{ steps.boringcache-publish.outputs.cache-hit || steps.boringcache-restore.outputs.cache-hit }}
+        CACHE_IMPORT_READY: ${{ steps.boringcache-publish.outputs.docker-cache-import-ready || steps.boringcache-restore.outputs.docker-cache-import-ready }}
+        CACHE_TAG: ${{ steps.boringcache-publish.outputs.cache-tag || steps.boringcache-restore.outputs.cache-tag }}
+        CACHE_WORKSPACE: ${{ steps.boringcache-publish.outputs.workspace || steps.boringcache-restore.outputs.workspace }}
+        EVIDENCE_PATH: ${{ steps.boringcache-publish.outputs.evidence-path || steps.boringcache-restore.outputs.evidence-path }}
+        SOURCE_REPOSITORY: ${{ steps.scope.outputs.source_repository }}
+        SOURCE_SHA: ${{ steps.scope.outputs.source_sha }}
+      run: |
+        set -euo pipefail
+        python3 ./scripts/benchmark-report.py phase \
+          --benchmark "$BENCHMARK_ID" \
+          --strategy "$STRATEGY" \
+          --lane "$CACHE_LANE" \
+          --phase "$REPORT_PHASE" \
+          --mode turbo \
+          --restore-or-setup-seconds "$SETUP_SECONDS" \
+          --workflow-seconds "$(( $(date +%s) - WORKFLOW_STARTED_AT ))" \
+          --build-seconds "$BUILD_SECONDS" \
+          --cache-hit "$CACHE_HIT" \
+          --cache-import-ready "$CACHE_IMPORT_READY" \
+          --cache-tag "$CACHE_TAG" \
+          --workspace "$CACHE_WORKSPACE" \
+          --source-repository "$SOURCE_REPOSITORY" \
+          --source-sha "$SOURCE_SHA" \
+          --evidence "$EVIDENCE_PATH"
+    - name: Retain the benchmark phase evidence
+      uses: actions/upload-artifact@v6
+      with:
+        name: phase-${{ inputs.benchmark_id }}-${{ inputs.strategy }}-${{ inputs.cache_lane }}-${{ inputs.cache_lane == 'rolling' && 'commit' || inputs.phase == 'warm' && 'warm' || 'cold' }}
+        path: benchmark-results/
         if-no-files-found: error
