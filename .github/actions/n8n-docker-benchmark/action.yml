@@ -4,6 +4,9 @@ description: "Runs one n8n Docker cache provider, image case, and phase."
 inputs:
   benchmark_id:
     required: true
+  push_image:
+    required: false
+    default: "false"
   strategy:
     required: true
   cache_lane:
@@ -109,7 +112,7 @@ runs:
       run: test -s upstream/packages/cli/dist/index.js
 
     - name: Log in to the GitHub Container Registry
-      if: github.event_name != 'pull_request'
+      if: inputs.push_image == 'true' && github.ref == 'refs/heads/main'
       uses: docker/login-action@v3
       with:
         registry: ghcr.io
@@ -140,7 +143,7 @@ runs:
         context: upstream
         file: ${{ inputs.dockerfile_path }}
         tags: ghcr.io/${{ github.repository_owner }}/${{ inputs.image }}:actions-cache
-        push: ${{ github.event_name != 'pull_request' }}
+        push: ${{ inputs.push_image == 'true' && github.ref == 'refs/heads/main' }}
         build-args: |
           N8N_VERSION=snapshot
           N8N_RELEASE_TYPE=dev
@@ -162,7 +165,7 @@ runs:
         dockerfile: ${{ inputs.dockerfile_path }}
         image: ghcr.io/${{ github.repository_owner }}/${{ inputs.image }}
         tags: boringcache
-        push: ${{ github.event_name != 'pull_request' }}
+        push: ${{ inputs.push_image == 'true' && github.ref == 'refs/heads/main' }}
         build-args: |
           N8N_VERSION=snapshot
           N8N_RELEASE_TYPE=dev
@@ -185,7 +188,7 @@ runs:
         dockerfile: ${{ inputs.dockerfile_path }}
         image: ghcr.io/${{ github.repository_owner }}/${{ inputs.image }}
         tags: boringcache
-        push: ${{ github.event_name != 'pull_request' }}
+        push: ${{ inputs.push_image == 'true' && github.ref == 'refs/heads/main' }}
         build-args: |
           N8N_VERSION=snapshot
           N8N_RELEASE_TYPE=dev
