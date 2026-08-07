@@ -191,36 +191,36 @@ jobs:
       - name: Retain the n8n-docker BoringCache fresh result
         uses: actions/upload-artifact@v6
         with:
-          name: benchmark-n8n-docker-boringcache-fresh
-          path: benchmark-results/n8n-docker-boringcache-fresh.json
+          name: benchmark-n8n-docker${{ inputs.benchmark_id_suffix }}-boringcache-fresh
+          path: benchmark-results/n8n-docker${{ inputs.benchmark_id_suffix }}-boringcache-fresh.json
           if-no-files-found: error
       - name: Retain the n8n-docker GitHub Actions fresh result
         uses: actions/upload-artifact@v6
         with:
-          name: benchmark-n8n-docker-actions-cache-fresh
-          path: benchmark-results/n8n-docker-actions-cache-fresh.json
+          name: benchmark-n8n-docker${{ inputs.benchmark_id_suffix }}-actions-cache-fresh
+          path: benchmark-results/n8n-docker${{ inputs.benchmark_id_suffix }}-actions-cache-fresh.json
           if-no-files-found: error
       - name: Retain the n8n-runners BoringCache fresh result
         uses: actions/upload-artifact@v6
         with:
-          name: benchmark-n8n-runners-boringcache-fresh
-          path: benchmark-results/n8n-runners-boringcache-fresh.json
+          name: benchmark-n8n-runners${{ inputs.benchmark_id_suffix }}-boringcache-fresh
+          path: benchmark-results/n8n-runners${{ inputs.benchmark_id_suffix }}-boringcache-fresh.json
           if-no-files-found: error
       - name: Retain the n8n-runners GitHub Actions fresh result
         uses: actions/upload-artifact@v6
         with:
-          name: benchmark-n8n-runners-actions-cache-fresh
-          path: benchmark-results/n8n-runners-actions-cache-fresh.json
+          name: benchmark-n8n-runners${{ inputs.benchmark_id_suffix }}-actions-cache-fresh
+          path: benchmark-results/n8n-runners${{ inputs.benchmark_id_suffix }}-actions-cache-fresh.json
           if-no-files-found: error
       - name: Retain the n8n-runners-distroless BoringCache fresh result
         uses: actions/upload-artifact@v6
         with:
-          name: benchmark-n8n-runners-distroless-boringcache-fresh
-          path: benchmark-results/n8n-runners-distroless-boringcache-fresh.json
+          name: benchmark-n8n-runners-distroless${{ inputs.benchmark_id_suffix }}-boringcache-fresh
+          path: benchmark-results/n8n-runners-distroless${{ inputs.benchmark_id_suffix }}-boringcache-fresh.json
           if-no-files-found: error
       - name: Retain the n8n-runners-distroless GitHub Actions fresh result
         uses: actions/upload-artifact@v6
         with:
-          name: benchmark-n8n-runners-distroless-actions-cache-fresh
-          path: benchmark-results/n8n-runners-distroless-actions-cache-fresh.json
+          name: benchmark-n8n-runners-distroless${{ inputs.benchmark_id_suffix }}-actions-cache-fresh
+          path: benchmark-results/n8n-runners-distroless${{ inputs.benchmark_id_suffix }}-actions-cache-fresh.json
           if-no-files-found: error
