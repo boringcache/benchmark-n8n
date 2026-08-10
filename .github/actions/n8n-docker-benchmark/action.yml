@@ -52,6 +52,10 @@ runs:
         git submodule sync --recursive
         git -c protocol.version=2 submodule update --init --depth 1 --recommend-shallow --jobs 4 upstream
 
+    - name: Verify the upstream benchmark recipe
+      shell: bash
+      run: python3 ./scripts/verify-upstream-recipe.py
+
     - name: Prepare clean n8n source
       shell: bash
       env:
@@ -145,12 +149,15 @@ runs:
       with:
         context: upstream
         file: ${{ inputs.dockerfile_path }}
+        platforms: linux/amd64
         tags: ghcr.io/${{ github.repository_owner }}/${{ inputs.image }}:actions-cache
         push: ${{ inputs.push_image == 'true' && github.ref == 'refs/heads/main' }}
         build-args: |
+          NODE_VERSION=${{ inputs.node_version }}
           N8N_VERSION=snapshot
           N8N_RELEASE_TYPE=dev
         provenance: false
+        sbom: true
         cache-from: type=gha,scope=${{ steps.scope.outputs.cache_scope }}
         cache-to: type=gha,scope=${{ steps.scope.outputs.cache_scope }},mode=max
 
@@ -169,9 +176,13 @@ runs:
         image: ghcr.io/${{ github.repository_owner }}/${{ inputs.image }}
         tags: boringcache
         push: ${{ inputs.push_image == 'true' && github.ref == 'refs/heads/main' }}
+        platforms: linux/amd64
         build-args: |
+          NODE_VERSION=${{ inputs.node_version }}
           N8N_VERSION=snapshot
           N8N_RELEASE_TYPE=dev
+        provenance: false
+        sbom: true
         load: false
         fail-on-cache-error: true
         metadata-hints: benchmark=${{ inputs.benchmark_id }},phase=${{ inputs.cache_lane == 'rolling' && 'rolling-docker' || 'fresh-cold-docker' }}
@@ -192,9 +203,13 @@ runs:
         image: ghcr.io/${{ github.repository_owner }}/${{ inputs.image }}
         tags: boringcache
         push: ${{ inputs.push_image == 'true' && github.ref == 'refs/heads/main' }}
+        platforms: linux/amd64
         build-args: |
+          NODE_VERSION=${{ inputs.node_version }}
           N8N_VERSION=snapshot
           N8N_RELEASE_TYPE=dev
+        provenance: false
+        sbom: true
         load: false
         fail-on-cache-miss: true
         fail-on-cache-error: true
