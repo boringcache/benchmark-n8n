@@ -1,0 +1,226 @@
+name: "n8n Docker Fresh"
+run-name: >-
+  ${{ format('Benchmark {0} | {1}', github.event_name == 'pull_request' && 'Validation' || inputs.cli_version != '' && 'Canary' || 'Fresh', github.event_name == 'schedule' && 'Weekly' || github.event_name == 'pull_request' && format('PR #{0}', github.event.pull_request.number) || format('Manual dispatch ({0})', github.ref_name)) }}
+
+on:
+  workflow_dispatch:
+    inputs:
+      buildkit_image:
+        description: "Optional managed BoringCache BuildKit image."
+        required: false
+        type: string
+        default: ""
+      cli_version:
+        description: "Optional exact BoringCache CLI release tag."
+        required: false
+        type: string
+        default: ""
+      benchmark_id_suffix:
+        description: "Optional suffix for an isolated comparison run."
+        required: false
+        type: string
+        default: ""
+      runner_label:
+        description: "Optional runner label for a manual main-branch experiment."
+        required: false
+        type: string
+        default: ""
+  schedule:
+    - cron: "30 3 * * 6"
+  pull_request:
+    paths:
+      - ".boringcache.toml"
+      - ".gitmodules"
+      - ".github/actions/n8n-docker-benchmark/**"
+      - ".github/workflows/n8n-docker-benchmark.yml"
+      - ".github/workflows/n8n-docker-fresh-benchmark.yml"
+      - "scripts/prepare-source.sh"
+      - "scripts/scope-boringcache-run.sh"
+      - "upstream"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref_name }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  actions: write
+  packages: read
+
+env:
+  BORINGCACHE_RESTORE_TOKEN: ${{ secrets.BORINGCACHE_RESTORE_TOKEN }}
+  BORINGCACHE_SAVE_TOKEN: ${{ secrets.BORINGCACHE_SAVE_TOKEN }}
+  BORINGCACHE_NO_GIT: "true"
+
+jobs:
+  cold:
+    name: ${{ matrix.provider }} ${{ matrix.case_name }} cold
+    if: inputs.runner_label == '' || github.ref_name == 'main'
+    runs-on: ${{ github.event_name == 'workflow_dispatch' && github.ref_name == 'main' && inputs.runner_label || 'ubuntu-latest' }}
+    timeout-minutes: 180
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - provider: GitHub Actions
+            strategy: actions-cache
+            case_name: n8n
+            benchmark_id: n8n-docker
+            dockerfile_path: upstream/docker/images/n8n/Dockerfile
+            image: n8n-benchmark
+          - provider: GitHub Actions
+            strategy: actions-cache
+            case_name: runners
+            benchmark_id: n8n-runners
+            dockerfile_path: upstream/docker/images/runners/Dockerfile
+            image: n8n-runners-benchmark
+          - provider: GitHub Actions
+            strategy: actions-cache
+            case_name: distroless
+            benchmark_id: n8n-runners-distroless
+            dockerfile_path: upstream/docker/images/runners/Dockerfile.distroless
+            image: n8n-runners-distroless-benchmark
+          - provider: BoringCache
+            strategy: boringcache
+            case_name: n8n
+            benchmark_id: n8n-docker
+            dockerfile_path: upstream/docker/images/n8n/Dockerfile
+            image: n8n-benchmark
+          - provider: BoringCache
+            strategy: boringcache
+            case_name: runners
+            benchmark_id: n8n-runners
+            dockerfile_path: upstream/docker/images/runners/Dockerfile
+            image: n8n-runners-benchmark
+          - provider: BoringCache
+            strategy: boringcache
+            case_name: distroless
+            benchmark_id: n8n-runners-distroless
+            dockerfile_path: upstream/docker/images/runners/Dockerfile.distroless
+            image: n8n-runners-distroless-benchmark
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/n8n-docker-benchmark
+        with:
+          strategy: ${{ matrix.strategy }}
+          cache_lane: fresh
+          phase: publish
+          benchmark_id: ${{ format('{0}{1}', matrix.benchmark_id, inputs.benchmark_id_suffix) }}
+          cli_version: ${{ inputs.cli_version }}
+          buildkit_image: ${{ inputs.buildkit_image }}
+          dockerfile_path: ${{ matrix.dockerfile_path }}
+          image: ${{ matrix.image }}
+          node_version: "24.18.1"
+
+  warm:
+    name: ${{ matrix.provider }} ${{ matrix.case_name }} warm
+    needs: cold
+    runs-on: ${{ github.event_name == 'workflow_dispatch' && github.ref_name == 'main' && inputs.runner_label || 'ubuntu-latest' }}
+    timeout-minutes: 180
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - provider: GitHub Actions
+            strategy: actions-cache
+            case_name: n8n
+            benchmark_id: n8n-docker
+            dockerfile_path: upstream/docker/images/n8n/Dockerfile
+            image: n8n-benchmark
+          - provider: GitHub Actions
+            strategy: actions-cache
+            case_name: runners
+            benchmark_id: n8n-runners
+            dockerfile_path: upstream/docker/images/runners/Dockerfile
+            image: n8n-runners-benchmark
+          - provider: GitHub Actions
+            strategy: actions-cache
+            case_name: distroless
+            benchmark_id: n8n-runners-distroless
+            dockerfile_path: upstream/docker/images/runners/Dockerfile.distroless
+            image: n8n-runners-distroless-benchmark
+          - provider: BoringCache
+            strategy: boringcache
+            case_name: n8n
+            benchmark_id: n8n-docker
+            dockerfile_path: upstream/docker/images/n8n/Dockerfile
+            image: n8n-benchmark
+          - provider: BoringCache
+            strategy: boringcache
+            case_name: runners
+            benchmark_id: n8n-runners
+            dockerfile_path: upstream/docker/images/runners/Dockerfile
+            image: n8n-runners-benchmark
+          - provider: BoringCache
+            strategy: boringcache
+            case_name: distroless
+            benchmark_id: n8n-runners-distroless
+            dockerfile_path: upstream/docker/images/runners/Dockerfile.distroless
+            image: n8n-runners-distroless-benchmark
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/n8n-docker-benchmark
+        with:
+          strategy: ${{ matrix.strategy }}
+          cache_lane: fresh
+          phase: warm
+          benchmark_id: ${{ format('{0}{1}', matrix.benchmark_id, inputs.benchmark_id_suffix) }}
+          cli_version: ${{ inputs.cli_version }}
+          buildkit_image: ${{ inputs.buildkit_image }}
+          dockerfile_path: ${{ matrix.dockerfile_path }}
+          image: ${{ matrix.image }}
+          node_version: "24.18.1"
+  report:
+    name: n8n Docker fresh report
+    needs: warm
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v6
+      - name: Download the benchmark phase evidence
+        uses: actions/download-artifact@v6
+        with:
+          pattern: phase-*
+          path: phase-evidence
+      - name: Publish the n8n Docker benchmark report
+        run: |
+          python3 ./scripts/benchmark-report.py summarize \
+            --title "n8n Docker fresh benchmark" \
+            --input-dir phase-evidence \
+            --output-dir benchmark-results
+      - name: Retain the n8n-docker BoringCache fresh result
+        uses: actions/upload-artifact@v6
+        with:
+          name: benchmark-n8n-docker${{ inputs.benchmark_id_suffix }}-boringcache-fresh
+          path: benchmark-results/n8n-docker${{ inputs.benchmark_id_suffix }}-boringcache-fresh.json
+          if-no-files-found: error
+      - name: Retain the n8n-docker GitHub Actions fresh result
+        uses: actions/upload-artifact@v6
+        with:
+          name: benchmark-n8n-docker${{ inputs.benchmark_id_suffix }}-actions-cache-fresh
+          path: benchmark-results/n8n-docker${{ inputs.benchmark_id_suffix }}-actions-cache-fresh.json
+          if-no-files-found: error
+      - name: Retain the n8n-runners BoringCache fresh result
+        uses: actions/upload-artifact@v6
+        with:
+          name: benchmark-n8n-runners${{ inputs.benchmark_id_suffix }}-boringcache-fresh
+          path: benchmark-results/n8n-runners${{ inputs.benchmark_id_suffix }}-boringcache-fresh.json
+          if-no-files-found: error
+      - name: Retain the n8n-runners GitHub Actions fresh result
+        uses: actions/upload-artifact@v6
+        with:
+          name: benchmark-n8n-runners${{ inputs.benchmark_id_suffix }}-actions-cache-fresh
+          path: benchmark-results/n8n-runners${{ inputs.benchmark_id_suffix }}-actions-cache-fresh.json
+          if-no-files-found: error
+      - name: Retain the n8n-runners-distroless BoringCache fresh result
+        uses: actions/upload-artifact@v6
+        with:
+          name: benchmark-n8n-runners-distroless${{ inputs.benchmark_id_suffix }}-boringcache-fresh
+          path: benchmark-results/n8n-runners-distroless${{ inputs.benchmark_id_suffix }}-boringcache-fresh.json
+          if-no-files-found: error
+      - name: Retain the n8n-runners-distroless GitHub Actions fresh result
+        uses: actions/upload-artifact@v6
+        with:
+          name: benchmark-n8n-runners-distroless${{ inputs.benchmark_id_suffix }}-actions-cache-fresh
+          path: benchmark-results/n8n-runners-distroless${{ inputs.benchmark_id_suffix }}-actions-cache-fresh.json
+          if-no-files-found: error

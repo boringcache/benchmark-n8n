@@ -1,0 +1,14 @@
+workspace = "boringcache/benchmark-n8n"
+
+[adapters.docker]
+tag = "n8n-docker"
+metadata-hints = ["benchmark=n8n-docker", "upstream-job=build-and-push-docker-image-amd64"]
+command = [
+  "bash", "-euo", "pipefail", "-c",
+  "dockerfile=${N8N_DOCKERFILE:-upstream/docker/images/n8n/Dockerfile}; node_version=${N8N_NODE_VERSION:-24.18.1}; exec docker buildx build --file ${dockerfile} --platform linux/amd64 --build-arg NODE_VERSION=${node_version} --build-arg N8N_VERSION=snapshot --build-arg N8N_RELEASE_TYPE=dev --provenance false --sbom true --tag n8n-benchmark:local upstream",
+]
+
+[adapters.turbo]
+tag = "n8n-turbo-local"
+metadata-hints = ["benchmark=n8n-turbo", "upstream-command=pnpm-build"]
+command = ["corepack", "pnpm", "build"]
