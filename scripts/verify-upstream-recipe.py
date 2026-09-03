@@ -16,15 +16,18 @@ def main() -> int:
         plan = tomllib.loads((ROOT / ".boringcache.toml").read_text())
         require(plan["adapters"]["turbo"]["command"] == ["corepack", "pnpm", "build"], "Turbo plan changed")
         docker = plan["adapters"]["docker"]["command"]
-        require(docker[:4] == ["bash", "-euo", "pipefail", "-c"], "Docker plan must be argv-safe")
-        for fragment in ("24.18.1", "NODE_VERSION", "N8N_VERSION=snapshot", "N8N_RELEASE_TYPE=dev", "--platform linux/amd64", "--sbom true"):
-            require(fragment in docker[4], f"Docker plan changed: {fragment}")
+        require(docker[:7] == ["docker", "buildx", "build", "--file", "__N8N_DOCKERFILE__", "--platform", "linux/amd64"], "Docker plan changed")
+        for fragment in ("NODE_VERSION=__NODE_VERSION__", "N8N_VERSION=snapshot", "N8N_RELEASE_TYPE=dev", "n8n-benchmark:local"):
+            require(fragment in docker, f"Docker plan changed: {fragment}")
+        activation = (ROOT / "scripts/activate-docker-plan.py").read_text()
+        require('"--push"' in activation and "__N8N_DOCKERFILE__" in activation, "Docker plan activation changed")
         upstream = (ROOT / "upstream/.github/workflows/docker-build-push.yml").read_text()
-        for fragment in ("pnpm build:n8n", "NODE_VERSION", "N8N_VERSION", "N8N_RELEASE_TYPE", "sbom: true", "provenance: false"):
+        for fragment in ("pnpm build:n8n", "NODE_VERSION", "N8N_VERSION", "N8N_RELEASE_TYPE", "--sbom=false", "--provenance=false"):
             require(fragment in upstream, f"upstream Docker workflow changed: {fragment}")
         docker_action = (ROOT / ".github/actions/n8n-docker-benchmark/action.yml").read_text()
-        require(docker_action.count("NODE_VERSION=${{ inputs.node_version }}") == 3, "provider Node arg drifted")
-        require(docker_action.count("sbom: true") == 3, "provider SBOM output drifted")
+        require(docker_action.count("NODE_VERSION=${{ inputs.node_version }}") == 1, "Actions/cache Node arg drifted")
+        require(docker_action.count("sbom: false") == 1, "Actions/cache SBOM output drifted")
+        require(docker_action.count("Activate the BoringCache Docker plan") == 1, "BoringCache publication projection changed")
         turbo_action = (ROOT / ".github/actions/n8n-turbo-benchmark/action.yml").read_text()
         require("run-benchmark-plan.py turbo --working-directory upstream" in turbo_action, "Turbo workflow bypasses the plan")
     except (KeyError, OSError, RuntimeError, tomllib.TOMLDecodeError) as error:

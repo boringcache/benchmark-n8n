@@ -60,7 +60,7 @@ jobs:
           cache_lane: fresh
           phase: publish
           cli_version: ${{ inputs.cli_version }}
-          node_version: "24.18.1"
+          node_version: "26.7.0"
 
   warm:
     name: ${{ matrix.provider }} n8n warm
@@ -84,7 +84,7 @@ jobs:
           cache_lane: fresh
           phase: warm
           cli_version: ${{ inputs.cli_version }}
-          node_version: "24.18.1"
+          node_version: "26.7.0"
   report:
     name: n8n Turbo fresh report
     needs: warm

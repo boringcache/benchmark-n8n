@@ -110,7 +110,7 @@ jobs:
           buildkit_image: ${{ inputs.buildkit_image }}
           dockerfile_path: ${{ matrix.dockerfile_path }}
           image: ${{ matrix.image }}
-          node_version: "24.18.1"
+          node_version: "26.7.0"
   report:
     name: n8n Docker rolling report
     needs: publish
