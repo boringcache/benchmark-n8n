@@ -115,6 +115,7 @@ runs:
       working-directory: upstream
       env:
         CI: "1"
+        GITHUB_TOKEN: ${{ github.token }}
       run: corepack pnpm install --frozen-lockfile
 
     - name: Build n8n source
